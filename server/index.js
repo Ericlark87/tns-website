@@ -12,7 +12,9 @@ const app = express();
 const allowedOrigins = [
   "http://localhost:5173",
   "https://www.thingsnstuff.fun",
+  "https://thingsnstuff.fun"
 ];
+
 
 app.use(
   cors({
