@@ -11,6 +11,9 @@ dotenv.config();
 
 const app = express();
 
+// IMPORTANT for Render / proxies (needed for secure cookies + correct IP/https behavior)
+app.set("trust proxy", 1);
+
 // ---- REQUIRED ENV ----
 const PORT = process.env.PORT || 5200;
 const MONGO_URI = process.env.MONGO_URI;
@@ -21,36 +24,42 @@ if (!MONGO_URI) {
 }
 
 // ---- CORS ----
-// IMPORTANT: must be exact origins (no trailing slash)
-const allowedOrigins = [
+// EXACT origins + allow Vercel preview subdomains via regex
+const allowedOrigins = new Set([
   "http://localhost:5173",
-  "http://localhost:5200",
+  "http://127.0.0.1:5173",
+
   "https://thingsnstuff.fun",
   "https://www.thingsnstuff.fun",
-  "https://tns-website.onrender.com",
-];
 
-// Put CORS FIRST (before routes)
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // allow server-to-server / curl / health checks
-      if (!origin) return callback(null, true);
+  // optional: only if you ever call API from Render-hosted pages (usually you won't)
+  // "https://tns-website.onrender.com",
+]);
 
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, origin); // echo exact origin
-      }
+const vercelPreviewRegex = /^https:\/\/companysite-[a-z0-9-]+-erics-projects-500e00e9\.vercel\.app$/i;
+// If your preview URLs vary, loosen it to: /^https:\/\/companysite-.*\.vercel\.app$/i
 
-      return callback(new Error(`Not allowed by CORS: ${origin}`));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+const corsOptions = {
+  origin: (origin, callback) => {
+    // allow server-to-server / curl / health checks
+    if (!origin) return callback(null, true);
 
-// Make OPTIONS preflight always succeed
-app.options("*", cors());
+    if (allowedOrigins.has(origin)) return callback(null, true);
+
+    if (vercelPreviewRegex.test(origin)) return callback(null, true);
+
+    return callback(new Error(`Not allowed by CORS: ${origin}`));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
+// Put CORS FIRST
+app.use(cors(corsOptions));
+
+// Make OPTIONS preflight succeed using SAME options
+app.options("*", cors(corsOptions));
 
 // ---- MIDDLEWARE ----
 app.use(express.json());

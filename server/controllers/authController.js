@@ -41,11 +41,11 @@ export async function register(req, res) {
     // Create cookies/tokens
     const refreshToken = createRefreshToken(user._id);
     res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "strict",
-      path: "/api/auth/refresh",
-    });
+  httpOnly: true,
+  secure: true,
+  sameSite: "none",          // REQUIRED for cross-site cookie
+  path: "/api/auth/refresh",
+});
 
     const accessToken = createAccessToken(user._id);
 
@@ -80,12 +80,12 @@ export async function login(req, res) {
     const accessToken = createAccessToken(user._id);
 
     // Send cookie
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "strict",
-      path: "/api/auth/refresh",
-    });
+res.cookie("refreshToken", refreshToken, {
+  httpOnly: true,
+  secure: true,
+  sameSite: "none",          // REQUIRED for cross-site cookie
+  path: "/api/auth/refresh",
+});
 
     return res.json({
       message: "Login successful",
@@ -131,6 +131,9 @@ export async function refresh(req, res) {
  * ------------------------*/
 export async function logout(req, res) {
   res.clearCookie("refreshToken", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
     path: "/api/auth/refresh",
   });
 
