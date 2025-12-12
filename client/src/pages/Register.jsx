@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "http://https://tns-website.onrender.com";
+  import.meta.env.VITE_API_BASE_URL || "https://tns-website.onrender.com";
 
 export default function Register() {
   const [form, setForm] = useState({

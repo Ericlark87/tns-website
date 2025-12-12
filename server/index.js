@@ -12,7 +12,8 @@ const app = express();
 const allowedOrigins = [
   "http://localhost:5173",
   "https://www.thingsnstuff.fun",
-  "https://thingsnstuff.fun"
+  "https://thingsnstuff.fun",
+  https://tns-website.onrender.com
 ];
 
 
