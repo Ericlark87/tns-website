@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5200";
+  import.meta.env.VITE_API_BASE_URL || "https://tns-website.onrender.com";
 
 export default function Home() {
   const [email, setEmail] = useState("");

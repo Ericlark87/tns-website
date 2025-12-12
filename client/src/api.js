@@ -1,5 +1,5 @@
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5200";
+  import.meta.env.VITE_API_BASE_URL || "https://tns-website.onrender.com";
 
 export async function apiCall(url, method="GET", data=null, token=null){
   const res = await fetch(`${API_BASE_URL}${url}`, {
