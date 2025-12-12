@@ -1,163 +1,108 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "https://tns-website.onrender.com";
+// client/src/pages/Register.jsx
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import AuthLayout from "../components/AuthLayout.jsx";
+import { API_BASE_URL } from "../utils/api.js";
 
 export default function Register() {
-  const [form, setForm] = useState({
-    email: "",
-    password: "",
-    confirm: "",
-  });
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
-  const [successMsg, setSuccessMsg] = useState("");
+  const navigate = useNavigate();
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((f) => ({ ...f, [name]: value }));
-  };
-
-  const handleSubmit = async (e) => {
+  async function handleSubmit(e) {
     e.preventDefault();
-    setErrorMsg("");
-    setSuccessMsg("");
+    setError("");
 
-    if (form.password !== form.confirm) {
-      setErrorMsg("Passwords don’t match.");
+    if (!email || !password || !confirm) {
+      setError("Please fill in all fields.");
+      return;
+    }
+    if (password !== confirm) {
+      setError("Passwords don’t match.");
       return;
     }
 
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/register`, {
+      const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          email: form.email,
-          password: form.password,
-        }),
+        body: JSON.stringify({ email, password }),
       });
 
       const data = await res.json();
 
-      if (!res.ok || !data.ok) {
-        throw new Error(data.message || "Registration failed.");
+      if (!res.ok) {
+        setError(data.message || "Could not create account.");
+      } else {
+        navigate("/login");
       }
-
-      setSuccessMsg("Account created.");
     } catch (err) {
-      setErrorMsg(err.message || "Could not create account.");
+      console.error(err);
+      setError("Server error. Try again later.");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
-    <div className="max-w-md mx-auto px-4 sm:px-6 py-16 space-y-6">
-      <header>
-        <h1 className="text-2xl md:text-3xl font-bold mb-2">
-          Create your account
-        </h1>
-        <p className="text-slate-300 text-sm md:text-base">
-          When QuitChampion launches, this login will carry across the app and
-          the website.
-        </p>
-      </header>
+    <AuthLayout
+      eyebrow="Early access"
+      title="Create your account"
+      subtitle="This login will carry across the app and the website when QuitChampion launches."
+    >
+      {error && <div className="alert alert--error">{error}</div>}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label
-            htmlFor="email"
-            className="block text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 mb-1"
-          >
-            Email
-          </label>
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label className="form-label">Email</label>
           <input
-            id="email"
-            name="email"
+            className="input"
             type="email"
-            required
-            value={form.email}
-            onChange={handleChange}
-            className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-mint-500"
             placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
           />
         </div>
 
-        <div>
-          <label
-            htmlFor="password"
-            className="block text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 mb-1"
-          >
-            Password
-          </label>
+        <div className="form-group">
+          <label className="form-label">Password</label>
           <input
-            id="password"
-            name="password"
+            className="input"
             type="password"
-            required
-            value={form.password}
-            onChange={handleChange}
-            className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-mint-500"
-            placeholder="••••••••"
+            placeholder="Create a password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
           />
         </div>
 
-        <div>
-          <label
-            htmlFor="confirm"
-            className="block text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 mb-1"
-          >
-            Confirm Password
-          </label>
+        <div className="form-group">
+          <label className="form-label">Confirm password</label>
           <input
-            id="confirm"
-            name="confirm"
+            className="input"
             type="password"
-            required
-            value={form.confirm}
-            onChange={handleChange}
-            className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-mint-500"
-            placeholder="••••••••"
+            placeholder="Repeat password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            autoComplete="new-password"
           />
         </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-mint-500 hover:bg-mint-400 disabled:bg-mint-700 text-slate-950 font-semibold text-sm px-5 py-2.5 rounded-lg transition-all shadow-lg hover:shadow-mint-500/40"
-        >
-          {loading ? "Creating..." : "Create account"}
+        <button type="submit" className="btn btn--primary" disabled={loading}>
+          {loading ? "Creating…" : "Create account"}
         </button>
       </form>
 
-      {errorMsg && (
-        <p className="text-sm text-red-400">
-          {errorMsg}
-        </p>
-      )}
-      {successMsg && (
-        <p className="text-sm text-mint-400">
-          {successMsg}
-        </p>
-      )}
-
-      <p className="text-sm text-slate-400">
-        Already have an account?{" "}
-        <Link
-          to="/login"
-          className="text-mint-400 hover:text-mint-300 font-semibold"
-        >
-          Sign in
-        </Link>
-        .
+      <p className="auth-footer">
+        Already have an account? <Link to="/login">Sign in</Link>
       </p>
-    </div>
+    </AuthLayout>
   );
 }
