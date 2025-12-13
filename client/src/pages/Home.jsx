@@ -1,6 +1,6 @@
 // client/src/pages/Home.jsx  (raffle)
 import React, { useState } from "react";
-import { API_BASE_URL } from "../utils/api.js";
+import { API_BASE_URL } from "../api.js";
 
 export default function Home() {
   const [email, setEmail] = useState("");

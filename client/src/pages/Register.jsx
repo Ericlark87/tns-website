@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout.jsx";
-import { API_BASE_URL } from "../utils/api.js";
+import { API_BASE_URL } from "../api.js";
 
 export default function Register() {
   const [email, setEmail] = useState("");
