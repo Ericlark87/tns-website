@@ -1,87 +1,51 @@
+// server/routes/raffleRoutes.js
 import express from "express";
 import RaffleEntry from "../models/RaffleEntry.js";
 
 const router = express.Router();
 
-const RAFFLE_THRESHOLD = 25;
+const TOTAL_SPOTS = 25;
 
-// POST /api/raffle/enter
-router.post("/enter", async (req, res) => {
+// GET /api/raffle/stats
+router.get("/stats", async (req, res) => {
   try {
-    const { email } = req.body;
-
-    if (!email || typeof email !== "string") {
-      return res
-        .status(400)
-        .json({ ok: false, message: "Email is required." });
-    }
-
-    const normalizedEmail = email.trim().toLowerCase();
-
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalizedEmail)) {
-      return res
-        .status(400)
-        .json({ ok: false, message: "Enter a valid email address." });
-    }
-
-    const ip =
-      req.headers["x-forwarded-for"] ||
-      req.connection?.remoteAddress ||
-      req.socket?.remoteAddress ||
-      undefined;
-    const userAgent = req.headers["user-agent"];
-
-    let entry = await RaffleEntry.findOne({ email: normalizedEmail });
-
-    if (!entry) {
-      entry = await RaffleEntry.create({
-        email: normalizedEmail,
-        ip,
-        userAgent,
-      });
-    }
-
-    const count = await RaffleEntry.countDocuments();
-    const thresholdReached = count >= RAFFLE_THRESHOLD;
-
-    if (thresholdReached) {
-      console.log(
-        `🎟️ Raffle threshold reached: ${count} entries. Time to run a drawing.`
-      );
-      // TODO: drawing + notification hook
-    }
-
-    return res.json({
-      ok: true,
-      message: "You're in. Watch your inbox — you'll hear from us soon.",
-      count,
-      thresholdReached,
+    const entered = await RaffleEntry.countDocuments();
+    res.json({
+      totalSpots: TOTAL_SPOTS,
+      entered,
     });
   } catch (err) {
-    console.error("❌ Error in /api/raffle/enter:", err);
-    return res
-      .status(500)
-      .json({ ok: false, message: "Server error. Try again later." });
+    console.error("❌ /api/raffle/stats error:", err);
+    res.status(500).json({ message: "Failed to load raffle stats." });
   }
 });
 
-// GET /api/raffle/stats
-router.get("/stats", async (_req, res) => {
+// POST /api/raffle/enter  { email }
+router.post("/enter", async (req, res) => {
   try {
-    const count = await RaffleEntry.countDocuments();
-    const thresholdReached = count >= RAFFLE_THRESHOLD;
+    const { email } = req.body || {};
+    if (!email) {
+      return res.status(400).json({ message: "Email is required." });
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+
+    const existing = await RaffleEntry.findOne({ email: normalizedEmail });
+    if (existing) {
+      return res.status(409).json({
+        message: "You're already entered with this email.",
+      });
+    }
+
+    await RaffleEntry.create({ email: normalizedEmail });
 
     return res.json({
-      ok: true,
-      count,
-      thresholdReached,
-      threshold: RAFFLE_THRESHOLD,
+      message:
+        "You're in. If you're picked, you'll get an email with instructions.",
     });
   } catch (err) {
-    console.error("❌ Error in /api/raffle/stats:", err);
-    return res
-      .status(500)
-      .json({ ok: false, message: "Could not fetch stats." });
+    console.error("❌ /api/raffle/enter error:", err);
+    res.status(500).json({ message: "Failed to enter the raffle." });
   }
 });
 

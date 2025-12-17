@@ -1,108 +1,97 @@
 // client/src/pages/Register.jsx
-import React, { useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import AuthLayout from "../components/AuthLayout.jsx";
-import { API_BASE_URL } from "../api.js";
+import { useAuth } from "../AuthContext";
 
 export default function Register() {
+  const { register, isLoading, error, clearError } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [localMessage, setLocalMessage] = useState(null);
   const navigate = useNavigate();
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setError("");
+    clearError?.();
+    setLocalMessage(null);
 
-    if (!email || !password || !confirm) {
-      setError("Please fill in all fields.");
-      return;
-    }
-    if (password !== confirm) {
-      setError("Passwords don’t match.");
-      return;
-    }
+    const result = await register(email, password);
 
-    setLoading(true);
-
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.message || "Could not create account.");
-      } else {
-        navigate("/login");
-      }
-    } catch (err) {
-      console.error(err);
-      setError("Server error. Try again later.");
-    } finally {
-      setLoading(false);
+    if (result.success) {
+      setLocalMessage("Account created. Redirecting to home…");
+      navigate("/");
+    } else {
+      setLocalMessage(result.message || "Registration failed.");
     }
   }
 
   return (
-    <AuthLayout
-      eyebrow="Early access"
-      title="Create your account"
-      subtitle="This login will carry across the app and the website when QuitChampion launches."
-    >
-      {error && <div className="alert alert--error">{error}</div>}
+    <main className="page page--top">
+      <div className="auth-card">
+        <div className="auth-eyebrow">Start where you are</div>
+        <h1 className="auth-title">Create your QuitChampion account</h1>
+        <p className="auth-subtitle">
+          Keep your streaks, track your slips, and turn quitting into a game.
+        </p>
 
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label className="form-label">Email</label>
-          <input
-            className="input"
-            type="email"
-            placeholder="you@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-          />
+        {error && (
+          <div className="alert alert--error">
+            {error}
+          </div>
+        )}
+        {localMessage && !error && (
+          <div className="alert alert--success">
+            {localMessage}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label className="form-label" htmlFor="email">
+              Email
+            </label>
+            <input
+              id="email"
+              className="input"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="password">
+              Password
+            </label>
+            <input
+              id="password"
+              className="input"
+              type="password"
+              autoComplete="new-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="btn btn--primary"
+            disabled={isLoading}
+          >
+            {isLoading ? "Creating account…" : "Create account"}
+          </button>
+        </form>
+
+        <div className="auth-footer">
+          Already have an account?{" "}
+          <Link to="/login">Sign in</Link>.
         </div>
-
-        <div className="form-group">
-          <label className="form-label">Password</label>
-          <input
-            className="input"
-            type="password"
-            placeholder="Create a password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="new-password"
-          />
-        </div>
-
-        <div className="form-group">
-          <label className="form-label">Confirm password</label>
-          <input
-            className="input"
-            type="password"
-            placeholder="Repeat password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            autoComplete="new-password"
-          />
-        </div>
-
-        <button type="submit" className="btn btn--primary" disabled={loading}>
-          {loading ? "Creating…" : "Create account"}
-        </button>
-      </form>
-
-      <p className="auth-footer">
-        Already have an account? <Link to="/login">Sign in</Link>
-      </p>
-    </AuthLayout>
+      </div>
+    </main>
   );
 }

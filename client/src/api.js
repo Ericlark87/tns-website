@@ -1,11 +1,21 @@
 // client/src/api.js
 
-// Base URL for your backend (set in Vercel as VITE_API_BASE_URL)
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const DEFAULT_LOCAL_BASE = "http://localhost:5000";
 
-// Core request helper
-export async function apiRequest(path, options = {}) {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+export const API_BASE_URL =
+  (import.meta.env.VITE_API_BASE_URL &&
+    import.meta.env.VITE_API_BASE_URL.replace(/\/+$/, "")) ||
+  DEFAULT_LOCAL_BASE;
+
+async function apiRequest(path, options = {}) {
+  const isAbsolute =
+    path.startsWith("http://") || path.startsWith("https://");
+
+  const url = isAbsolute
+    ? path
+    : `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+
+  const response = await fetch(url, {
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
@@ -14,85 +24,52 @@ export async function apiRequest(path, options = {}) {
     ...options,
   });
 
-  if (!res.ok) {
+  if (!response.ok) {
     let message = "Server error. Try again later.";
     try {
-      const data = await res.json();
-      if (data?.message) message = data.message;
+      const data = await response.json();
+      if (data && typeof data.message === "string") {
+        message = data.message;
+      }
     } catch {
-      // ignore JSON parse errors
+      // ignore
     }
     throw new Error(message);
   }
 
-  // Some endpoints may return empty body
+  const text = await response.text();
+  if (!text) return null;
+
   try {
-    return await res.json();
+    return JSON.parse(text);
   } catch {
-    return null;
+    return text;
   }
 }
 
-/* ---------- Raffle ---------- */
-
-export function getStats() {
-  return apiRequest("/api/raffle/stats");
-}
-
-export function enterRaffle(email) {
-  return apiRequest("/api/raffle/enter", {
-    method: "POST",
-    body: JSON.stringify({ email }),
-  });
-}
-
-/* ---------- Auth ---------- */
-
-export function register(email, password) {
-  return apiRequest("/api/auth/register", {
-    method: "POST",
-    body: JSON.stringify({ email, password }),
-  });
-}
-
-export function login(email, password) {
-  return apiRequest("/api/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ email, password }),
-  });
-}
-
-export function refreshAccessToken() {
-  return apiRequest("/api/auth/refresh", {
-    method: "POST",
-  });
-}
-
-export function logout() {
-  return apiRequest("/api/auth/logout", {
-    method: "POST",
-  });
-}
-
-/* ---------- Backwards-compat aliases ---------- */
-// AuthContext expects these names:
 export const apiCall = apiRequest;
-export function refreshToken() {
-  return refreshAccessToken();
+
+// AUTH
+export function authApi(path, options) {
+  const safePath = path.startsWith("/") ? path : `/${path}`;
+  return apiRequest(`/api/auth${safePath}`, options);
 }
 
-// Optional default export
-const api = {
-  API_BASE_URL,
-  apiRequest,
-  apiCall,
-  getStats,
-  enterRaffle,
-  register,
-  login,
-  refreshAccessToken,
-  refreshToken,
-  logout,
-};
+export function refreshToken() {
+  return authApi("/refresh", { method: "POST" });
+}
 
-export default api;
+// RAFFLE
+export function raffleApi(path, options) {
+  const safePath = path.startsWith("/") ? path : `/${path}`;
+  return apiRequest(`/api/raffle${safePath}`, options);
+}
+
+// SUPPORT (future)
+export function supportApi(path, options) {
+  const safePath = path.startsWith("/") ? path : `/${path}`;
+  return apiRequest(`/api/support${safePath}`, options);
+}
+
+// Default export
+export default apiRequest;

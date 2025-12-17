@@ -1,29 +1,70 @@
+// client/src/App.jsx
 import { Routes, Route, Navigate } from "react-router-dom";
-import Home from "./pages/Home.jsx";
-import Contact from "./pages/Contact.jsx";
-import Login from "./pages/Login.jsx";
-import Register from "./pages/Register.jsx";
-import Nav from "./components/Nav.jsx";
-import Footer from "./components/Footer.jsx";
+import Nav from "./components/Nav";
+import Footer from "./components/Footer";
+import Home from "./pages/Home";
+import Contact from "./pages/Contact";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Dashboard from "./pages/Dashboard";
+import Armory from "./pages/Armory";
+import { useAuth } from "./AuthContext";
+
+function RequireAuth({ children }) {
+  const { user, bootstrapped } = useAuth();
+
+  // While we're checking the refresh cookie, show nothing.
+  if (!bootstrapped) return null;
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+}
 
 export default function App() {
+  const { user } = useAuth();
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="app-shell">
       <Nav />
-      <main className="flex-1">
+      <main className="app-main">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/contact" element={<Contact />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
 
-          {/* Redirect old /quitchampion URL to new home */}
           <Route
-            path="/quitchampion"
-            element={<Navigate to="/" replace />}
+            path="/login"
+            element={
+              user ? <Navigate to="/dashboard" replace /> : <Login />
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              user ? <Navigate to="/dashboard" replace /> : <Register />
+            }
           />
 
-          {/* Catch-all: unknown routes -> home */}
+          <Route
+            path="/dashboard"
+            element={
+              <RequireAuth>
+                <Dashboard />
+              </RequireAuth>
+            }
+          />
+
+          <Route
+            path="/armory"
+            element={
+              <RequireAuth>
+                <Armory />
+              </RequireAuth>
+            }
+          />
+
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

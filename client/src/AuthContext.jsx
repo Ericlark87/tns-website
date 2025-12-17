@@ -1,92 +1,130 @@
-// ~/TNS/company_site/client/src/AuthContext.jsx
+// client/src/AuthContext.jsx
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { authApi, refreshToken as refreshApi } from "./api";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { apiCall, refreshToken } from "./api";
-
+// Shape of the context
 const AuthContext = createContext({
   user: null,
-  loading: true,
-  login: async () => {},
-  register: async () => {},
+  accessToken: null,
+  isLoading: false,
+  error: null,
+  login: async () => ({ success: false }),
+  register: async () => ({ success: false }),
   logout: async () => {},
+  clearError: () => {},
 });
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [accessToken, setAccessToken] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [bootstrapped, setBootstrapped] = useState(false);
 
-  // Try to restore session on first load
+  // Try to restore session from refresh cookie on mount
   useEffect(() => {
     let cancelled = false;
 
-    async function tryRefresh() {
+    async function bootstrap() {
       try {
-        const data = await refreshToken();
-        // If backend sends back a user, store it
+        const data = await refreshApi();
         if (!cancelled && data && data.user) {
           setUser(data.user);
+          setAccessToken(data.accessToken || null);
         }
-      } catch (err) {
-        // 401 / network error = just not logged in; don't kill the app
-        console.warn("Silent auth refresh failed:", err?.message || err);
+      } catch {
+        // Not logged in / refresh failed – ignore
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setBootstrapped(true);
       }
     }
 
-    tryRefresh();
-
+    bootstrap();
     return () => {
       cancelled = true;
     };
   }, []);
 
+  const clearError = () => setError(null);
+
   const login = async (email, password) => {
-    const data = await apiCall("/api/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
-    if (data && data.user) {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const data = await authApi("/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
+
       setUser(data.user);
+      setAccessToken(data.accessToken || null);
+
+      return { success: true };
+    } catch (err) {
+      const message = err?.message || "Login failed. Please try again.";
+      setError(message);
+      return { success: false, message };
+    } finally {
+      setIsLoading(false);
     }
-    return data;
   };
 
   const register = async (email, password) => {
-    const data = await apiCall("/api/auth/register", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
-    if (data && data.user) {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const data = await authApi("/register", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
+
       setUser(data.user);
+      setAccessToken(data.accessToken || null);
+
+      return { success: true };
+    } catch (err) {
+      const message =
+        err?.message || "Registration failed. Please try again.";
+      setError(message);
+      return { success: false, message };
+    } finally {
+      setIsLoading(false);
     }
-    return data;
   };
 
   const logout = async () => {
     try {
-      await apiCall("/api/auth/logout", { method: "POST" });
-    } catch (err) {
-      console.warn("Logout error:", err?.message || err);
-    } finally {
-      setUser(null);
+      await authApi("/logout", { method: "POST" });
+    } catch {
+      // ignore errors, just clear local state
     }
+    setUser(null);
+    setAccessToken(null);
   };
 
   const value = useMemo(
     () => ({
       user,
-      loading,
+      accessToken,
+      isLoading,
+      error,
       login,
       register,
       logout,
+      clearError,
+      bootstrapped,
     }),
-    [user, loading]
+    [user, accessToken, isLoading, error, bootstrapped]
   );
 
-  // IMPORTANT: do **not** block rendering with a "Loading..." screen.
-  // The app will render immediately; `loading` just tells components
-  // whether the silent refresh finished.
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

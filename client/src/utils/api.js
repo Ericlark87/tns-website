@@ -1,8 +1,7 @@
 // client/src/utils/api.js
 
-// Re-export everything from the main api module so older imports still work.
-export * from "../api";
+// Thin re-export layer so code can import from either
+// "./api" or "./utils/api" without caring where the logic lives.
 
-// Also forward the default export if something imports `default` from here.
-import api from "../api";
-export default api;
+export { default } from "../api.js";
+export * from "../api.js";

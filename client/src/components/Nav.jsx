@@ -1,13 +1,16 @@
-// client/src/components/Nav.jsx
-import React from "react";
-import { NavLink, Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "../AuthContext";
 
 export default function Nav() {
-  const navLinkClass = ({ isActive }) =>
-    "nav-link" + (isActive ? " nav-link--active" : "");
+  const { pathname } = useLocation();
+  const { user, logout } = useAuth();
+
+  const linkClass = (path) =>
+    `nav-link ${pathname === path ? "nav-link--active" : ""}`;
 
   return (
     <header className="navbar">
+      {/* Left: logo + tagline */}
       <div className="navbar-left">
         <Link to="/" className="nav-logo-mark">
           QC
@@ -18,19 +21,46 @@ export default function Nav() {
         </div>
       </div>
 
+      {/* Right: links + auth */}
       <nav className="nav-links">
-        <NavLink to="/" end className={navLinkClass}>
+        <Link to="/" className={linkClass("/")}>
           Home
-        </NavLink>
-        <NavLink to="/contact" className={navLinkClass}>
+        </Link>
+
+        <Link to="/contact" className={linkClass("/contact")}>
           Contact
-        </NavLink>
-        <NavLink to="/login" className={navLinkClass}>
-          Login
-        </NavLink>
-        <NavLink to="/register" className={navLinkClass}>
-          Register
-        </NavLink>
+        </Link>
+
+        {user && (
+          <Link to="/dashboard" className={linkClass("/dashboard")}>
+            Dashboard
+          </Link>
+        )}
+
+        {user ? (
+          <>
+            {/* show email as a pill, same style as active link */}
+            <span className="nav-link nav-link--active">
+              {user.email}
+            </span>
+            <button
+              type="button"
+              onClick={logout}
+              className="nav-link"
+            >
+              Logout
+            </button>
+          </>
+        ) : (
+          <>
+            <Link to="/login" className={linkClass("/login")}>
+              Login
+            </Link>
+            <Link to="/register" className={linkClass("/register")}>
+              Register
+            </Link>
+          </>
+        )}
       </nav>
     </header>
   );
