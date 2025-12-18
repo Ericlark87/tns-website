@@ -27,16 +27,37 @@ if (!MONGO_URI) {
   );
 }
 
-// ----- MIDDLEWARE -----
+// ----- CORS -----
+const allowedOriginPattern = /^(https?:\/\/localhost(:\d+)?|https:\/\/.*\.thingsnstuff\.fun|https:\/\/.*onrender\.com|https:\/\/.*vercel\.app)$/;
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      process.env.CORS_ORIGIN,
-      "https://thingsnstuff.fun",
-      // keep this or swap in your current Vercel project URL if you want:
-      "https://companysite-hwrz4xmy-erics-projects-5o0e0oe9.vercel.app",
-    ].filter(Boolean),
+    origin(origin, callback) {
+      // No Origin header (same-origin / curl / Postman) → allow
+      if (!origin) return callback(null, true);
+
+      if (allowedOriginPattern.test(origin)) {
+        return callback(null, true);
+      }
+
+      console.warn("🔒 CORS blocked origin:", origin);
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+// Make sure preflight gets the same treatment
+app.options(
+  "*",
+  cors({
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
+      if (allowedOriginPattern.test(origin)) return callback(null, true);
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   })
 );
