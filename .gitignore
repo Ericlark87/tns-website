@@ -8,10 +8,21 @@ dist/
 client/dist/
 server/dist/
 
+# Root / client env
+.env
+.env.local
+.env.*
+client/.env
+client/.env.local
+client/.env.*
+
 # Server environment (keep secrets out of git)
 server/.env
 server/.env.local
 server/.env.*
+
+# Vercel / local config
+.vercel
 
 # Logs
 npm-debug.log*
