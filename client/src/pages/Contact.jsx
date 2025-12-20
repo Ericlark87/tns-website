@@ -1,129 +1,124 @@
 // client/src/pages/Contact.jsx
-import React, { useState } from "react";
+import { useState } from "react";
+import { useAuth } from "../AuthContext";
+import { supportApi } from "../api";
 
 export default function Contact() {
-  const [form, setForm] = useState({
-    email: "",
-    subject: "",
-    message: "",
-  });
+  const { user } = useAuth();
 
-  const [infoShown, setInfoShown] = useState(false);
+  const [email, setEmail] = useState(user?.email || "");
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState("");
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = (e) => {
+  async function handleSubmit(e) {
     e.preventDefault();
+    if (!message.trim()) return;
 
-    const to = "support@thingsnstuff.fun";
-    const subject =
-      form.subject.trim() || "QuitChampion support / feedback";
-    const bodyLines = [
-      `From: ${form.email || "(no email entered)"}`,
-      "",
-      form.message || "(no message entered)",
-    ];
-
-    const mailto = `mailto:${encodeURIComponent(
-      to
-    )}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(
-      bodyLines.join("\n")
-    )}`;
-
-    // This opens THEIR email app with everything pre-filled.
-    window.location.href = mailto;
-
-    setInfoShown(true);
-  };
+    try {
+      setBusy(true);
+      setStatus("");
+      await supportApi("/contact", {
+        method: "POST",
+        body: JSON.stringify({ email, message }),
+      });
+      setStatus("Message sent. I’ll get back to you as soon as I can.");
+      setMessage("");
+    } catch (err) {
+      console.error("Support request failed", err);
+      setStatus(err.message || "Could not send message.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
-    <main className="page page--top">
-      <section className="auth-card" aria-labelledby="contact-title">
-        <p className="auth-eyebrow">Support</p>
-        <h1 id="contact-title" className="auth-title">
-          Contact QuitChampion
-        </h1>
-        <p className="auth-subtitle">
-          This doesn&apos;t send anything from our servers. When you hit
-          &quot;Send message&quot;, your own email app opens with everything
-          filled out, addressed to{" "}
-          <strong>support@thingsnstuff.fun</strong>. You can edit it and
-          then send.
-        </p>
+    <div className="page page-support">
+      <div className="qc-page-inner support-grid">
+        <section className="support-card">
+          <h1 className="support-title">
+            {user ? "Need backup?" : "Locked out or confused?"}
+          </h1>
+          <p className="support-subtitle">
+            {user
+              ? "Send a message if something’s broken, confusing, or just feels off."
+              : "If you can’t log in or something looks wrong, start here."}
+          </p>
 
-        {infoShown && (
-          <div className="alert alert--success">
-            Your mail client should have opened. If it didn&apos;t, just copy
-            the text below and email{" "}
-            <strong>support@thingsnstuff.fun</strong> manually.
-          </div>
-        )}
-
-        <form className="space-y-3" onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label" htmlFor="email">
-              Your email
+          <form className="support-form" onSubmit={handleSubmit}>
+            <label className="support-label">
+              Email
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="support-input"
+                placeholder="you@email.com"
+              />
             </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              className="input"
-              placeholder="you@example.com"
-              value={form.email}
-              onChange={handleChange}
-              required
-            />
-          </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="subject">
-              Subject
+            <label className="support-label">
+              What’s going on?
+              <textarea
+                required
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                className="support-textarea"
+                rows={5}
+                placeholder="Describe what you were doing and what broke."
+              />
             </label>
-            <input
-              id="subject"
-              name="subject"
-              className="input"
-              placeholder="What do you need help with?"
-              value={form.subject}
-              onChange={handleChange}
-              required
-            />
-          </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="message">
-              Message
-            </label>
-            <textarea
-              id="message"
-              name="message"
-              className="input"
-              rows={4}
-              placeholder="Give as much detail as you want: screenshots, device, what you were doing, etc."
-              value={form.message}
-              onChange={handleChange}
-              required
-            />
-          </div>
+            <button
+              type="submit"
+              disabled={busy}
+              className="qc-btn qc-btn-primary support-submit"
+            >
+              {busy ? "Sending..." : "Send message"}
+            </button>
 
-          <button type="submit" className="btn btn--primary">
-            Send message
-          </button>
+            {status && <p className="support-status">{status}</p>}
+          </form>
 
-          <p className="auth-footer" style={{ marginTop: 10 }}>
-            Messages go to{" "}
+          <p className="support-footnote">
+            Or email directly:{" "}
             <a href="mailto:support@thingsnstuff.fun">
               support@thingsnstuff.fun
-            </a>{" "}
-            and forward to the main QuitChampion inbox. No newsletter, no
-            spam — just support.
+            </a>
+            .
           </p>
-        </form>
-      </section>
-    </main>
+        </section>
+
+        <section className="support-card support-faq">
+          <h2 className="support-faq-title">Quick FAQ</h2>
+          <ul className="support-faq-list">
+            <li>
+              <strong>I never got the verification or raffle email.</strong>
+              <span>
+                &nbsp;Check spam/junk and search for “QuitChampion” or
+                “thingsnstuff”. If nothing shows, contact support with the email
+                you used.
+              </span>
+            </li>
+            <li>
+              <strong>I forgot my password.</strong>
+              <span>
+                &nbsp;Password reset is coming with the app launch. For now,
+                reach out via the form above and I’ll help untangle it.
+              </span>
+            </li>
+            <li>
+              <strong>Is the app live yet?</strong>
+              <span>
+                &nbsp;Not yet. Mobile app is in active development. First public
+                beta is planned for 2026, and raffle winners get first shot at
+                Premium trials.
+              </span>
+            </li>
+          </ul>
+        </section>
+      </div>
+    </div>
   );
 }

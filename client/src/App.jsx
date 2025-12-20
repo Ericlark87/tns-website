@@ -3,36 +3,33 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Nav from "./components/Nav";
 import Footer from "./components/Footer";
 import Home from "./pages/Home";
-import Contact from "./pages/Contact";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Armory from "./pages/Armory";
+import Contact from "./pages/Contact";
 import { useAuth } from "./AuthContext";
 
-function RequireAuth({ children }) {
-  const { user, bootstrapped } = useAuth();
-
-  // While we're checking the refresh cookie, show nothing.
-  if (!bootstrapped) return null;
-
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return children;
-}
-
-export default function App() {
+function App() {
   const { user } = useAuth();
 
+  // Simple flex shell so footer stays at bottom even if content is short
+  const shellStyle = {
+    minHeight: "100vh",
+    display: "flex",
+    flexDirection: "column",
+  };
+
+  const mainStyle = {
+    flex: "1 0 auto",
+  };
+
   return (
-    <div className="app-shell">
+    <div className="app-shell" style={shellStyle}>
       <Nav />
-      <main className="app-main">
+      <main className="page-main" style={mainStyle}>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/contact" element={<Contact />} />
 
           <Route
             path="/login"
@@ -40,6 +37,7 @@ export default function App() {
               user ? <Navigate to="/dashboard" replace /> : <Login />
             }
           />
+
           <Route
             path="/register"
             element={
@@ -50,21 +48,20 @@ export default function App() {
           <Route
             path="/dashboard"
             element={
-              <RequireAuth>
-                <Dashboard />
-              </RequireAuth>
+              user ? <Dashboard /> : <Navigate to="/login" replace />
             }
           />
 
           <Route
             path="/armory"
             element={
-              <RequireAuth>
-                <Armory />
-              </RequireAuth>
+              user ? <Armory /> : <Navigate to="/login" replace />
             }
           />
 
+          <Route path="/contact" element={<Contact />} />
+
+          {/* Catch-all → home */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
@@ -72,3 +69,5 @@ export default function App() {
     </div>
   );
 }
+
+export default App;

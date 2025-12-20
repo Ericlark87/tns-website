@@ -1,32 +1,40 @@
 // server/models/User.js
 import mongoose from "mongoose";
 
+const streakSchema = new mongoose.Schema(
+  {
+    current: { type: Number, default: 0 },
+    best: { type: Number, default: 0 },
+    lastResetAt: { type: Date },
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema(
   {
     email: {
       type: String,
       required: true,
-      unique: true,        // this alone creates the unique index
+      unique: true,
       lowercase: true,
       trim: true,
     },
+    // Hashed password
     passwordHash: {
       type: String,
       required: true,
-      select: false,       // don't return by default
+      select: false,
     },
-
-    // did this account come from the raffle?
-    fromRaffle: {
-      type: Boolean,
-      default: false,
-    },
-
-    // plan: free vs trial vs paid
     plan: {
       type: String,
-      enum: ["free", "pro_trial", "pro"],
+      enum: ["free", "trial", "premium"],
       default: "free",
+    },
+    fromRaffle: { type: Boolean, default: false },
+    raffleWinner: { type: Boolean, default: false },
+    streak: {
+      type: streakSchema,
+      default: () => ({}),
     },
   },
   {
@@ -34,6 +42,8 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-const User = mongoose.model("User", userSchema);
+// Ensure email is indexed
+userSchema.index({ email: 1 }, { unique: true });
 
+const User = mongoose.model("User", userSchema);
 export default User;

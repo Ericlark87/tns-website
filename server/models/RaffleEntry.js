@@ -8,14 +8,18 @@ const raffleEntrySchema = new mongoose.Schema(
       required: true,
       lowercase: true,
       trim: true,
-      unique: true, // one entry per email
+    },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
-const RaffleEntry =
-  mongoose.models.RaffleEntry ||
-  mongoose.model("RaffleEntry", raffleEntrySchema);
+raffleEntrySchema.index({ email: 1 }, { unique: true });
 
+const RaffleEntry = mongoose.model("RaffleEntry", raffleEntrySchema);
 export default RaffleEntry;

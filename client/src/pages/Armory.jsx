@@ -1,85 +1,145 @@
 // client/src/pages/Armory.jsx
-import { Link } from "react-router-dom";
-import { useAuth } from "../AuthContext";
 
-export default function Armory() {
-  const { user } = useAuth();
-  const plan = user?.plan || "free";
+import { Link } from "react-router-dom";
+
+function Armory() {
+  const cardStyle = {
+    borderRadius: "1.25rem",
+    padding: "1.4rem 1.6rem",
+    background:
+      "radial-gradient(circle at top left, rgba(30,64,175,0.6), rgba(15,23,42,0.97))",
+    border: "1px solid rgba(148,163,184,0.4)",
+    color: "rgba(226,232,240,0.96)",
+    fontSize: "0.9rem",
+  };
+
+  const titleStyle = {
+    fontSize: "1.6rem",
+    marginBottom: "0.6rem",
+    color: "rgba(226,232,240,0.98)",
+  };
+
+  const sectionTitleStyle = {
+    fontSize: "0.9rem",
+    textTransform: "uppercase",
+    letterSpacing: "0.12em",
+    color: "rgba(148,163,184,0.9)",
+    marginBottom: "0.4rem",
+  };
+
+  const listStyle = {
+    marginTop: "0.4rem",
+    paddingLeft: "1.2rem",
+  };
 
   return (
-    <section className="page page--top">
-      <div className="max-w-4xl w-full mx-auto">
-        <div className="raffle-card text-left">
-          <p className="auth-eyebrow">Armory & gift shop</p>
-          <h1 className="raffle-title" style={{ fontSize: "22px" }}>
-            Gear up like a gladiator.
-          </h1>
-          <p className="raffle-subtitle">
-            This is where Pro unlocks live. No loot boxes. No casino tricks.
-            Just a straight trade: a few dollars for tools that actually help.
-          </p>
+    <div className="page page-armory">
+      <div className="page-inner" style={{ maxWidth: "820px", margin: "0 auto" }}>
+        <h1 style={titleStyle}>Armory &amp; gift shop</h1>
+        <p style={{ color: "rgba(148,163,184,0.96)", fontSize: "0.95rem" }}>
+          Gear up like a gladiator. This is where extra armor, cosmetics, and
+          premium features unlock. No loot boxes, no upsell ladder—just clear
+          options and a straight trade: a few dollars for tools that actually
+          help.
+        </p>
 
-          <div className="mt-4 grid gap-4 md:grid-cols-2 text-sm">
-            <div>
-              <h2 className="font-semibold mb-2 text-slate-100">
-                Free plan (what you already get)
-              </h2>
-              <ul className="space-y-1 list-disc list-inside text-slate-200">
-                <li>Track one habit (alcohol, nicotine, etc.)</li>
-                <li>Streak counter: days clean vs slipped</li>
-                <li>Money saved estimate</li>
-                <li>Cold-Truth mode (raw stats, no fluff)</li>
-                <li>Private Oath surfaced at risky moments</li>
-                <li>Failure Autopsy after each relapse</li>
-              </ul>
-            </div>
+        <div style={{ marginTop: "1.25rem", display: "grid", gap: "1rem" }}>
+          {/* Free plan */}
+          <section style={cardStyle}>
+            <div style={sectionTitleStyle}>Free plan (what you already get)</div>
+            <ul style={listStyle}>
+              <li>Track one habit (alcohol, nicotine, etc.).</li>
+              <li>Streak counter: days clean vs slipped.</li>
+              <li>
+                Money saved estimate so you can see what you&apos;re buying back.
+              </li>
+              <li>
+                A cold-truth mode that shows your real numbers with no fluff.
+              </li>
+              <li>Private oath surfaced at risky moments.</li>
+              <li>Failure autopsy after each relapse.</li>
+            </ul>
+          </section>
 
-            <div>
-              <h2 className="font-semibold mb-2 text-amber-300">
-                QuitChampion Pro (paid)
-              </h2>
-              <ul className="space-y-1 list-disc list-inside text-slate-200">
-                <li>Track multiple habits at once</li>
-                <li>Streak Insurance credits that absorb slips</li>
-                <li>Buddy System with mutual unlock real chat</li>
-                <li>Deep stats: triggers, times, patterns</li>
-                <li>Custom reminders around danger hours</li>
-                <li>Full history + export of your records</li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="mt-5 text-sm text-slate-300 space-y-2">
-            <p>
-              Pricing will be simple: one monthly or yearly subscription,
-              no addons, no upsell ladder. Founding Members from the early
-              raffle get a permanent discount.
+          {/* Pro plan */}
+          <section style={cardStyle}>
+            <div style={sectionTitleStyle}>QuitChampion Pro (planned)</div>
+            <ul style={listStyle}>
+              <li>Track multiple habits at once.</li>
+              <li>Streak insurance credits that absorb the occasional slip.</li>
+              <li>
+                Buddy system with mutual unlock—real chat once both people opt in.
+              </li>
+              <li>Deep stats: triggers, times, patterns, and danger zones.</li>
+              <li>Custom reminders around your worst hours.</li>
+              <li>Full history + export of your records.</li>
+            </ul>
+            <p style={{ marginTop: "0.6rem" }}>
+              Pricing will be simple: one monthly or yearly subscription, no
+              nickel-and-diming, no &quot;surprise&quot; tiers. Founding members
+              from the early raffle get a permanent discount.
             </p>
+          </section>
+
+          {/* Savage mode talk */}
+          <section style={cardStyle}>
+            <div style={sectionTitleStyle}>Savage mode (tone pack)</div>
             <p>
-              Right now, this page is just the armory blueprint. When
-              payments go live, this is where you&apos;ll upgrade and see
-              your active status.
+              Some people want gentle encouragement. Others want a coach who
+              talks like your angriest friend after you screw up for the tenth
+              time. Savage mode will be an optional tone pack layered on top of
+              the app:
             </p>
-          </div>
+            <ul style={listStyle}>
+              <li>
+                Explicit, no-mercy reminders when you hover near danger hours.
+              </li>
+              <li>
+                Rated-R language possible, but only if you opt in and confirm
+                you&apos;re cool with it.
+              </li>
+              <li>
+                Never attacks your worth as a person—only the habit you&apos;re
+                trying to kill.
+              </li>
+              <li>
+                Can be turned off instantly if it ever crosses from motivating
+                to unhelpful.
+              </li>
+            </ul>
+            <p style={{ marginTop: "0.6rem", fontSize: "0.85rem" }}>
+              We&apos;ll tie this into your dashboard coaching tone setting so
+              your account remembers exactly how hard you want to be pushed.
+            </p>
+          </section>
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            <span className="text-xs px-3 py-1 rounded-full bg-slate-900 text-slate-300 border border-slate-700">
-              Current plan:{" "}
-              <strong>
-                {plan === "pro" || plan === "paid" ? "QuitChampion Pro" : "Free"}
-              </strong>
-            </span>
-
-            <Link to="/dashboard" className="btn btn--ghost text-xs">
-              Back to Dashboard
+          {/* Back link */}
+          <section style={cardStyle}>
+            <p style={{ marginBottom: "0.5rem" }}>
+              For now, there&apos;s nothing to buy yet. We&apos;re wiring the
+              rails first: accounts, raffle, dashboard, and app countdown.
+            </p>
+            <Link
+              to="/dashboard"
+              style={{
+                display: "inline-block",
+                padding: "0.6rem 1.1rem",
+                borderRadius: "999px",
+                background:
+                  "linear-gradient(135deg, #22c55e, #4ade80, #22c55e)",
+                color: "#052e16",
+                fontWeight: 600,
+                fontSize: "0.9rem",
+                textDecoration: "none",
+              }}
+            >
+              Back to dashboard
             </Link>
-
-            <Link to="/" className="btn btn--ghost text-xs">
-              Back to Home
-            </Link>
-          </div>
+          </section>
         </div>
       </div>
-    </section>
+    </div>
   );
 }
+
+export default Armory;

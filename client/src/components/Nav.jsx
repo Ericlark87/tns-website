@@ -1,67 +1,74 @@
-import { Link, useLocation } from "react-router-dom";
+// client/src/components/Nav.jsx
+import { Link, NavLink } from "react-router-dom";
 import { useAuth } from "../AuthContext";
 
-export default function Nav() {
-  const { pathname } = useLocation();
+function Nav() {
   const { user, logout } = useAuth();
 
-  const linkClass = (path) =>
-    `nav-link ${pathname === path ? "nav-link--active" : ""}`;
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (err) {
+      console.error("Logout failed", err);
+    }
+  };
+
+  const linkClass = ({ isActive }) =>
+    "qc-nav-link" + (isActive ? " qc-nav-link-active" : "");
 
   return (
-    <header className="navbar">
-      {/* Left: logo + tagline */}
-      <div className="navbar-left">
-        <Link to="/" className="nav-logo-mark">
-          QC
-        </Link>
-        <div className="nav-logo-text">
-          <span className="nav-logo-title">QuitChampion</span>
-          <span className="nav-logo-subtitle">Turn quitting into a game</span>
-        </div>
-      </div>
-
-      {/* Right: links + auth */}
-      <nav className="nav-links">
-        <Link to="/" className={linkClass("/")}>
-          Home
-        </Link>
-
-        <Link to="/contact" className={linkClass("/contact")}>
-          Contact
-        </Link>
-
-        {user && (
-          <Link to="/dashboard" className={linkClass("/dashboard")}>
-            Dashboard
+    <header className="qc-header">
+      <nav className="qc-nav">
+        <div className="qc-nav-left">
+          <Link to="/" className="qc-logo">
+            <span className="qc-logo-mark">QC</span>
+            <span className="qc-logo-text">QuitChampion</span>
           </Link>
-        )}
+        </div>
 
-        {user ? (
-          <>
-            {/* show email as a pill, same style as active link */}
-            <span className="nav-link nav-link--active">
-              {user.email}
-            </span>
-            <button
-              type="button"
-              onClick={logout}
-              className="nav-link"
-            >
-              Logout
-            </button>
-          </>
-        ) : (
-          <>
-            <Link to="/login" className={linkClass("/login")}>
-              Login
-            </Link>
-            <Link to="/register" className={linkClass("/register")}>
-              Register
-            </Link>
-          </>
-        )}
+        <div className="qc-nav-right">
+          {!user && (
+            <>
+              <NavLink to="/" end className={linkClass}>
+                Home
+              </NavLink>
+              <NavLink to="/support" className={linkClass}>
+                FAQ / Support
+              </NavLink>
+              <NavLink to="/login" className={linkClass}>
+                Sign in
+              </NavLink>
+              <NavLink to="/register" className="qc-nav-cta">
+                Get started
+              </NavLink>
+            </>
+          )}
+
+          {user && (
+            <>
+              <NavLink to="/dashboard" className={linkClass}>
+                Dashboard
+              </NavLink>
+              <NavLink to="/armory" className={linkClass}>
+                Armory
+              </NavLink>
+              <NavLink to="/support" className={linkClass}>
+                Support
+              </NavLink>
+              <span className="qc-nav-email">{user.email}</span>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="qc-nav-logout"
+              >
+                Logout
+              </button>
+            </>
+          )}
+        </div>
       </nav>
     </header>
   );
 }
+
+export default Nav;

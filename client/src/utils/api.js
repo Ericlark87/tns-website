@@ -1,7 +1,21 @@
 // client/src/utils/api.js
+import apiRequest, {
+  apiCall,
+  API_BASE_URL,
+  authApi,
+  refreshToken,
+  raffleApi,
+  supportApi,
+} from "../api.js";
 
-// Thin re-export layer so code can import from either
-// "./api" or "./utils/api" without caring where the logic lives.
+export {
+  apiRequest,
+  apiCall,
+  API_BASE_URL,
+  authApi,
+  refreshToken,
+  raffleApi,
+  supportApi,
+};
 
-export { default } from "../api.js";
-export * from "../api.js";
+export default apiRequest;

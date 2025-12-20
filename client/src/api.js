@@ -1,5 +1,6 @@
 // client/src/api.js
 
+// Dev default: talk to local server
 const DEFAULT_LOCAL_BASE = "http://localhost:5000";
 
 export const API_BASE_URL =
@@ -7,6 +8,7 @@ export const API_BASE_URL =
     import.meta.env.VITE_API_BASE_URL.replace(/\/+$/, "")) ||
   DEFAULT_LOCAL_BASE;
 
+// Core request helper
 async function apiRequest(path, options = {}) {
   const isAbsolute =
     path.startsWith("http://") || path.startsWith("https://");
@@ -32,7 +34,7 @@ async function apiRequest(path, options = {}) {
         message = data.message;
       }
     } catch {
-      // ignore
+      // keep default
     }
     throw new Error(message);
   }
@@ -47,9 +49,10 @@ async function apiRequest(path, options = {}) {
   }
 }
 
+// Some older code still uses this name
 export const apiCall = apiRequest;
 
-// AUTH
+// ---------- AUTH ----------
 export function authApi(path, options) {
   const safePath = path.startsWith("/") ? path : `/${path}`;
   return apiRequest(`/api/auth${safePath}`, options);
@@ -59,17 +62,17 @@ export function refreshToken() {
   return authApi("/refresh", { method: "POST" });
 }
 
-// RAFFLE
+// ---------- RAFFLE ----------
 export function raffleApi(path, options) {
   const safePath = path.startsWith("/") ? path : `/${path}`;
   return apiRequest(`/api/raffle${safePath}`, options);
 }
 
-// SUPPORT (future)
+// ---------- SUPPORT ----------
 export function supportApi(path, options) {
   const safePath = path.startsWith("/") ? path : `/${path}`;
   return apiRequest(`/api/support${safePath}`, options);
 }
 
-// Default export
+// Default export for imports like `import api from "./api"`
 export default apiRequest;
