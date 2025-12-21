@@ -52,12 +52,28 @@ function signRefreshToken(user) {
   });
 }
 
+// Cross-site cookie rules:
+// - If frontend and API are on different domains, you MUST use SameSite=None + Secure
 function setRefreshCookie(res, token) {
+  const isProd = process.env.NODE_ENV === "production";
+
   res.cookie("qc_refresh", token, {
     httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: isProd,               // true on Render/prod (HTTPS)
+    sameSite: isProd ? "none" : "lax",
+    path: "/api/auth/refresh",    // only sent to refresh endpoint
     maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days
+  });
+}
+
+function clearRefreshCookie(res) {
+  const isProd = process.env.NODE_ENV === "production";
+
+  res.clearCookie("qc_refresh", {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
+    path: "/api/auth/refresh",
   });
 }
 
@@ -222,11 +238,7 @@ router.post("/refresh", async (req, res) => {
 
 // ---------- LOGOUT ----------
 router.post("/logout", (req, res) => {
-  res.clearCookie("qc_refresh", {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-  });
+  clearRefreshCookie(res);
   return res.json({ success: true });
 });
 
