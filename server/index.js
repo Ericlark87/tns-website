@@ -20,58 +20,61 @@ dotenv.config({ path: path.join(__dirname, ".env") });
 // ----- Core config -----
 const app = express();
 
-const PORT = process.env.PORT || 5000;
-const MONGO_URI =
-  process.env.MONGO_URI || "mongodb://127.0.0.1:27017/test";
+// IMPORTANT for Render / proxies (secure cookies, IPs, etc.)
+app.set("trust proxy", 1);
 
-// Look at all possible JWT secrets you’ve got defined
+const PORT = process.env.PORT || 5000;
+const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/test";
+
 const JWT_SECRET =
   process.env.JWT_SECRET ||
   process.env.JWT_ACCESS_SECRET ||
   process.env.JWT_REFRESH_SECRET;
 
 if (!JWT_SECRET) {
-  console.warn(
-    "⚠ No JWT secret found. Set JWT_SECRET in server/.env"
-  );
+  console.warn("⚠ No JWT secret found. Set JWT_SECRET in server/.env");
 }
 
 // ----- Middleware -----
 const allowedOrigins = [
   "http://localhost:5173",
-  process.env.CORS_ORIGIN,          // https://thingsnstuff.fun (from .env)
+  "http://localhost:3000",
+
+  // PRODUCTION (your real frontend)
   "https://thingsnstuff.fun",
-  "https://tns-website.onrender.com", // Render site
-  // keep or swap to your current Vercel URL if needed
+  "https://www.thingsnstuff.fun",
+
+  // Optional: if you ever host the frontend elsewhere
+  process.env.CORS_ORIGIN, // can be https://www.thingsnstuff.fun
   "https://companysite-henna.vercel.app",
 ].filter(Boolean);
 
-app.use(
-  cors({
-    origin(origin, callback) {
-      // Allow same-origin / curl / Postman with no Origin header
-      if (!origin) return callback(null, true);
+const corsOptions = {
+  origin(origin, callback) {
+    // Allow same-origin / curl / Postman with no Origin header
+    if (!origin) return callback(null, true);
 
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
+    if (allowedOrigins.includes(origin)) return callback(null, true);
 
-      console.warn(`CORS blocked origin: ${origin}`);
-      return callback(new Error("Not allowed by CORS"));
-    },
-    credentials: true,
-  })
-);
+    console.warn(`CORS blocked origin: ${origin}`);
+    // Return a CORS rejection WITHOUT crashing the request into a 500
+    return callback(null, false);
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
+app.use(cors(corsOptions));
+// Make preflight always succeed cleanly
+app.options("*", cors(corsOptions));
 
 app.use(express.json());
 app.use(cookieParser());
 
 // ----- Routes -----
 app.get("/", (req, res) => {
-  res.json({
-    ok: true,
-    message: "QuitChampion API is running.",
-  });
+  res.json({ ok: true, message: "QuitChampion API is running." });
 });
 
 app.use("/api/auth", authRoutes);
@@ -80,10 +83,7 @@ app.use("/api/support", supportRoutes);
 
 // ----- Mongo + server start -----
 mongoose
-  .connect(MONGO_URI, {
-    // dbName is optional if it's encoded in your MONGO_URI already
-    // dbName: "test",
-  })
+  .connect(MONGO_URI)
   .then(() => {
     console.log("MongoDB connected");
     app.listen(PORT, () => {
