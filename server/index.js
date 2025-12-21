@@ -20,12 +20,10 @@ dotenv.config({ path: path.join(__dirname, ".env") });
 // ----- Core config -----
 const app = express();
 
-// IMPORTANT for Render / proxies (secure cookies, IPs, etc.)
-app.set("trust proxy", 1);
-
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/test";
 
+// Look at all possible JWT secrets you’ve got defined
 const JWT_SECRET =
   process.env.JWT_SECRET ||
   process.env.JWT_ACCESS_SECRET ||
@@ -35,46 +33,39 @@ if (!JWT_SECRET) {
   console.warn("⚠ No JWT secret found. Set JWT_SECRET in server/.env");
 }
 
-// ----- Middleware -----
+// ----- CORS -----
 const allowedOrigins = [
   "http://localhost:5173",
-  "http://localhost:3000",
 
-  // PRODUCTION (your real frontend)
+  // Your domains
   "https://thingsnstuff.fun",
   "https://www.thingsnstuff.fun",
 
-  // Optional: if you ever host the frontend elsewhere
-  process.env.CORS_ORIGIN, // can be https://www.thingsnstuff.fun
-  "https://companysite-henna.vercel.app",
+  // The Render backend can be called directly from tools / Postman etc.
+  "https://tns-website.onrender.com",
+
+  // Optional extra from env (preview URL etc.)
+  process.env.CORS_ORIGIN,
 ].filter(Boolean);
 
-const corsOptions = {
-  origin(origin, callback) {
-    // Allow same-origin / curl / Postman with no Origin header
-    if (!origin) return callback(null, true);
+console.log("CORS allowed origins:", allowedOrigins);
 
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-
-    console.warn(`CORS blocked origin: ${origin}`);
-    // Return a CORS rejection WITHOUT crashing the request into a 500
-    return callback(null, false);
-  },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-};
-
-app.use(cors(corsOptions));
-// Make preflight always succeed cleanly
-app.options("*", cors(corsOptions));
+app.use(
+  cors({
+    origin: allowedOrigins,      // <<< let cors handle the matching
+    credentials: true,
+  })
+);
 
 app.use(express.json());
 app.use(cookieParser());
 
 // ----- Routes -----
 app.get("/", (req, res) => {
-  res.json({ ok: true, message: "QuitChampion API is running." });
+  res.json({
+    ok: true,
+    message: "QuitChampion API is running.",
+  });
 });
 
 app.use("/api/auth", authRoutes);
