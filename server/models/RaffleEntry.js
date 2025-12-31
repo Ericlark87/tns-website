@@ -1,17 +1,24 @@
 // server/models/RaffleEntry.js
 import mongoose from "mongoose";
 
-const raffleEntrySchema = new mongoose.Schema(
+const { Schema } = mongoose;
+
+const raffleEntrySchema = new Schema(
   {
-    email: {
+    roundId: {
       type: String,
       required: true,
-      lowercase: true,
-      trim: true,
+      index: true,
     },
     userId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "User",
+      required: true,
+      index: true,
+    },
+    email: {
+      type: String,
+      trim: true,
     },
   },
   {
@@ -19,7 +26,11 @@ const raffleEntrySchema = new mongoose.Schema(
   }
 );
 
-raffleEntrySchema.index({ email: 1 }, { unique: true });
+// One entry per user per round
+raffleEntrySchema.index({ roundId: 1, userId: 1 }, { unique: true });
 
-const RaffleEntry = mongoose.model("RaffleEntry", raffleEntrySchema);
+const RaffleEntry =
+  mongoose.models.RaffleEntry ||
+  mongoose.model("RaffleEntry", raffleEntrySchema);
+
 export default RaffleEntry;

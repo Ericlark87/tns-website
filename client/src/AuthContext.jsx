@@ -1,44 +1,65 @@
 // client/src/AuthContext.jsx
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-import { authApi, refreshToken } from "./api.js";
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { authClient, refreshToken, setAccessToken, clearAccessToken } from "./api.js";
 
-const AuthContext = createContext({
-  user: null,
-  accessToken: null,
-  loading: true,
-  login: async () => {},
-  register: async () => {},
-  logout: async () => {},
-});
+const AuthContext = createContext(null);
+const STORAGE_KEY = "qtc_auth_v1";
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [accessToken, setAccessToken] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [initializing, setInitializing] = useState(true);
 
-  // On mount: try refresh
   useEffect(() => {
     let cancelled = false;
 
-    const init = async () => {
+    async function init() {
       try {
-        const data = await refreshToken();
-        if (!cancelled && data?.user) {
-          setUser(data.user);
-          setAccessToken(data.accessToken || null);
+        let stored = null;
+
+        try {
+          const raw =
+            typeof window !== "undefined"
+              ? window.localStorage.getItem(STORAGE_KEY)
+              : null;
+          if (raw) stored = JSON.parse(raw);
+        } catch {
+          stored = null;
         }
-      } catch {
-        // not logged in – ignore
+
+        // Only restore USER from this storage key.
+        // Token lives in qc_access_token via setAccessToken/getAccessToken.
+        if (stored?.user) setUser(stored.user);
+
+        // Try refresh using httpOnly cookie to get a fresh access token
+        try {
+          const res = await refreshToken();
+          if (!cancelled && res?.user && res?.accessToken) {
+            setAccessToken(res.accessToken);
+            setUser(res.user);
+
+            if (typeof window !== "undefined") {
+              window.localStorage.setItem(
+                STORAGE_KEY,
+                JSON.stringify({ user: res.user })
+              );
+            }
+
+            console.log("Auth init: restored session for", res.user.email);
+            return;
+          }
+        } catch {
+          // If refresh fails, we may still have a valid access token already stored
+          // in qc_access_token (from a previous login). That's fine.
+          if (stored?.user) {
+            console.log("Auth init: using stored user only for", stored.user.email);
+          } else {
+            console.log("Auth init: not logged in");
+          }
+        }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setInitializing(false);
       }
-    };
+    }
 
     init();
     return () => {
@@ -46,49 +67,54 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  const login = async (email, password) => {
-    const payload = { email, password };
-    const data = await authApi("/login", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-    setUser(data.user);
-    setAccessToken(data.accessToken || null);
-    return data;
-  };
-
-  const register = async (email, password) => {
-    const payload = { email, password };
-    const data = await authApi("/register", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-    setUser(data.user);
-    setAccessToken(data.accessToken || null);
-    return data;
-  };
-
-  const logout = async () => {
-    try {
-      await authApi("/logout", { method: "POST" });
-    } catch {
-      // ignore
+  async function register(form) {
+    const res = await authClient.register(form);
+    if (res?.user && res?.accessToken) {
+      setAccessToken(res.accessToken);
+      setUser(res.user);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: res.user }));
+      }
     }
+    return res;
+  }
+
+  async function login(email, password) {
+    const res = await authClient.login({ email, password });
+    if (res?.user && res?.accessToken) {
+      setAccessToken(res.accessToken);
+      setUser(res.user);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: res.user }));
+      }
+    }
+    return res;
+  }
+
+  async function logout() {
+    try {
+      await authClient.logout();
+    } catch (err) {
+      console.warn("Logout error (ignored):", err);
+    }
+    clearAccessToken();
     setUser(null);
-    setAccessToken(null);
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(STORAGE_KEY);
+    }
+  }
+
+  const value = {
+    user,
+    initializing,
+    isAuthenticated: !!user,
+    register,
+    login,
+    logout,
   };
 
-  const value = useMemo(
-    () => ({
-      user,
-      accessToken,
-      loading,
-      login,
-      register,
-      logout,
-    }),
-    [user, accessToken, loading]
-  );
+  // Prevent app from mounting until auth init completes (stops early 401 spam)
+  if (initializing) return null;
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -6,6 +6,7 @@ import apiRequest, {
   refreshToken,
   raffleApi,
   supportApi,
+  habitsApi,
 } from "../api.js";
 
 export {
@@ -16,6 +17,7 @@ export {
   refreshToken,
   raffleApi,
   supportApi,
+  habitsApi,
 };
 
 export default apiRequest;

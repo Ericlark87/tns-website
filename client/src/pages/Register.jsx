@@ -1,77 +1,112 @@
 // client/src/pages/Register.jsx
 import { useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
-import { useAuth } from "../AuthContext";
+import { Navigate, useNavigate } from "react-router-dom";
+import { useAuth } from "../AuthContext.jsx";
 
+// --- layout styles (same look as login/home) ---
 const pageStyle = {
   minHeight: "calc(100vh - 64px)",
   display: "flex",
-  alignItems: "center",
   justifyContent: "center",
-  padding: "3.5rem 1.5rem",
+  padding: "3rem 1.5rem 4rem",
   background:
-    "radial-gradient(circle at top, #111827 0, #020617 45%, #000000 100%)",
+    "radial-gradient(circle at top, #020617 0, #020617 40%, #000000 100%)",
   color: "#e5e7eb",
-};
-
-const cardStyle = {
-  width: "100%",
-  maxWidth: "480px",
-  borderRadius: "24px",
-  padding: "2.5rem 2.25rem 2rem",
-  background: "rgba(15, 23, 42, 0.96)",
-  boxShadow: "0 22px 40px rgba(15, 23, 42, 0.9)",
-  border: "1px solid rgba(148, 163, 184, 0.25)",
   fontFamily:
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif',
 };
 
-const stepStyle = {
-  textTransform: "uppercase",
-  letterSpacing: "0.18em",
-  fontSize: "0.7rem",
-  color: "#9ca3af",
-  marginBottom: "0.5rem",
+const shellStyle = {
+  width: "100%",
+  maxWidth: "760px",
+  borderRadius: "28px",
+  padding: "2.3rem 2.2rem 2.4rem",
+  background:
+    "linear-gradient(145deg, rgba(15,23,42,0.98), rgba(30,64,175,0.96))",
+  boxShadow: "0 28px 50px rgba(15, 23, 42, 0.95)",
+  border: "1px solid rgba(148, 163, 184, 0.3)",
 };
 
-const titleStyle = {
-  fontSize: "1.7rem",
+const h1Style = {
+  fontSize: "1.6rem",
   fontWeight: 600,
-  margin: "0 0 0.4rem",
+  marginBottom: "0.35rem",
 };
 
-const subtitleStyle = {
-  fontSize: "0.9rem",
+const subStyle = {
+  fontSize: "0.88rem",
+  color: "#cbd5f5",
+  marginBottom: "1.2rem",
+};
+
+const alertStyle = {
+  marginBottom: "1.0rem",
+  padding: "0.65rem 0.9rem",
+  borderRadius: "999px",
+  fontSize: "0.82rem",
+  background:
+    "linear-gradient(135deg, rgba(248,113,113,0.18), rgba(248,113,113,0.35))",
+  border: "1px solid rgba(248,113,113,0.9)",
+  color: "#fee2e2",
+};
+
+const sectionTitleStyle = {
+  fontSize: "0.8rem",
+  fontWeight: 600,
+  letterSpacing: "0.06em",
+  textTransform: "uppercase",
   color: "#9ca3af",
-  margin: "0 0 1.7rem",
-  lineHeight: 1.5,
+  marginTop: "0.9rem",
+  marginBottom: "0.35rem",
+};
+
+const gridRowStyle = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: "0.75rem",
 };
 
 const labelStyle = {
-  display: "block",
   fontSize: "0.8rem",
-  fontWeight: 500,
-  marginBottom: "0.35rem",
+  marginBottom: "0.15rem",
+  color: "#e5e7eb",
 };
 
 const inputStyle = {
   width: "100%",
-  padding: "0.6rem 0.8rem",
+  padding: "0.55rem 0.75rem",
   borderRadius: "999px",
-  border: "1px solid rgba(75, 85, 99, 0.9)",
-  backgroundColor: "#020617",
-  color: "#e5e7eb",
+  border: "1px solid rgba(148,163,184,0.7)",
+  backgroundColor: "rgba(15,23,42,0.95)",
+  color: "#f9fafb",
   fontSize: "0.9rem",
-  marginBottom: "0.9rem",
-  outline: "none",
 };
 
-const buttonStyle = {
-  width: "100%",
-  marginTop: "0.25rem",
-  padding: "0.7rem 1rem",
+const checkboxRowStyle = {
+  display: "flex",
+  alignItems: "flex-start",
+  gap: "0.55rem",
+  marginTop: "0.5rem",
+};
+
+const checkboxStyle = {
+  width: "16px",
+  height: "16px",
+  marginTop: "0.05rem",
+};
+
+const checkboxLabelStyle = {
+  fontSize: "0.8rem",
+  lineHeight: 1.4,
+  color: "#e5e7eb",
+};
+
+const submitButtonStyle = {
+  marginTop: "1.4rem",
+  padding: "0.7rem 1.6rem",
   borderRadius: "999px",
   border: "none",
+  width: "100%",
   backgroundImage: "linear-gradient(135deg, #f97316, #fb923c)",
   color: "#0b1120",
   fontWeight: 600,
@@ -79,39 +114,25 @@ const buttonStyle = {
   cursor: "pointer",
 };
 
-const buttonDisabledStyle = {
-  opacity: 0.7,
-  cursor: "default",
-};
+// --- helpers ---
+function calcAgeFromBirthday(birthday) {
+  if (!birthday) return null;
+  const [yearStr, monthStr, dayStr] = birthday.split("-");
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const day = Number(dayStr);
+  if (!year || !month || !day) return null;
 
-const errorStyle = {
-  marginBottom: "1rem",
-  padding: "0.6rem 0.75rem",
-  borderRadius: "0.75rem",
-  backgroundColor: "rgba(127, 29, 29, 0.85)",
-  border: "1px solid rgba(248, 113, 113, 0.9)",
-  color: "#fee2e2",
-  fontSize: "0.85rem",
-};
+  const today = new Date();
+  let age = today.getFullYear() - year;
 
-const footerRowStyle = {
-  marginTop: "1rem",
-  fontSize: "0.85rem",
-  color: "#9ca3af",
-};
-
-const linkStyle = {
-  color: "#fb923c",
-  fontWeight: 500,
-  textDecoration: "none",
-};
-
-const metaStyle = {
-  marginTop: "1.25rem",
-  fontSize: "0.75rem",
-  color: "#6b7280",
-  lineHeight: 1.4,
-};
+  const m = today.getMonth() + 1;
+  const d = today.getDate();
+  if (m < month || (m === month && d < day)) {
+    age -= 1;
+  }
+  return age;
+}
 
 export default function Register() {
   const { user, register } = useAuth();
@@ -119,56 +140,98 @@ export default function Register() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
+  const [password2, setPassword2] = useState("");
+  const [dashboardName, setDashboardName] = useState("");
+  const [country, setCountry] = useState("United States");
+  const [region, setRegion] = useState("");
+  const [birthday, setBirthday] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [understands, setUnderstands] = useState(false);
+  const [savageOptIn, setSavageOptIn] = useState(false);
   const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
 
+  // If already logged in, just bounce them to the dashboard
   if (user) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const handleSubmit = async (e) => {
+  async function handleSubmit(e) {
     e.preventDefault();
+    setError("");
 
-    if (!email || !password) {
+    if (!email || !password || !password2) {
       setError("Email and password are required.");
       return;
     }
-    if (password !== confirm) {
-      setError("Passwords don't match.");
+
+    if (password !== password2) {
+      setError("Passwords do not match.");
       return;
     }
 
-    setSubmitting(true);
-    setError("");
+    if (!understands) {
+      setError(
+        "You must confirm you understand what QuitChampion is for before creating an account."
+      );
+      return;
+    }
+
+    const ageNum = calcAgeFromBirthday(birthday);
+    if (!ageNum || Number.isNaN(ageNum)) {
+      setError("Please enter a valid birthday.");
+      return;
+    }
+    if (ageNum < 18) {
+      setError("You must be at least 18 years old to create an account.");
+      return;
+    }
+
+    const payload = {
+      email: email.trim(),
+      password,
+      displayName: dashboardName.trim() || undefined,
+      country: country.trim() || undefined,
+      region: region.trim() || undefined,
+      age: ageNum,
+      savageModeOptIn: savageOptIn,
+      understandsPurpose: true, // you already forced the checkbox
+      // extra info (backend currently ignores these, but we send anyway)
+      birthday,
+      postalCode: postalCode.trim() || undefined,
+    };
 
     try {
-      await register(email, password);
+      await register(payload);
       navigate("/dashboard");
     } catch (err) {
-      console.error("Register failed", err);
-      setError(err?.message || "Could not create your account. Try again.");
-    } finally {
-      setSubmitting(false);
+      console.error("Register failed:", err);
+      setError(
+        err?.message ||
+          "Could not create account. Please double-check your details and try again."
+      );
     }
-  };
+  }
 
   return (
     <main style={pageStyle}>
-      <section style={cardStyle}>
-        <p style={stepStyle}>Step one</p>
-        <h1 style={titleStyle}>Create your account</h1>
-        <p style={subtitleStyle}>
-          Free account. No card required. You&apos;ll unlock the dashboard and
-          the early access raffle.
+      <section style={shellStyle}>
+        <h1 style={h1Style}>Create your free account</h1>
+        <p style={subStyle}>
+          Free account. No card required. You’ll unlock the dashboard and the
+          raffle. Your account will carry over when the mobile app ships.
         </p>
 
-        {error && <div style={errorStyle}>{error}</div>}
+        {error && <div style={alertStyle}>{error}</div>}
 
-        <form onSubmit={handleSubmit}>
-          <label style={labelStyle}>
-            Email
+        <form onSubmit={handleSubmit} noValidate>
+          <div style={sectionTitleStyle}>Account basics</div>
+
+          <div style={{ marginBottom: "0.6rem" }}>
+            <label style={labelStyle} htmlFor="email">
+              Email
+            </label>
             <input
+              id="email"
               type="email"
               autoComplete="email"
               style={inputStyle}
@@ -176,56 +239,145 @@ export default function Register() {
               onChange={(e) => setEmail(e.target.value)}
               required
             />
-          </label>
+          </div>
 
-          <label style={labelStyle}>
-            Password
+          <div style={gridRowStyle}>
+            <div>
+              <label style={labelStyle} htmlFor="password">
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                autoComplete="new-password"
+                style={inputStyle}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label style={labelStyle} htmlFor="password2">
+                Confirm password
+              </label>
+              <input
+                id="password2"
+                type="password"
+                autoComplete="new-password"
+                style={inputStyle}
+                value={password2}
+                onChange={(e) => setPassword2(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+
+          <div style={sectionTitleStyle}>Who / where / birthday</div>
+
+          <div style={{ marginBottom: "0.6rem" }}>
+            <label style={labelStyle} htmlFor="dashboardName">
+              What should we call your dashboard?
+            </label>
             <input
-              type="password"
-              autoComplete="new-password"
+              id="dashboardName"
+              type="text"
               style={inputStyle}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
+              value={dashboardName}
+              onChange={(e) => setDashboardName(e.target.value)}
+              placeholder="Example: Elcskater"
             />
-          </label>
+          </div>
 
-          <label style={labelStyle}>
-            Confirm password
+          <div style={gridRowStyle}>
+            <div>
+              <label style={labelStyle} htmlFor="country">
+                Country
+              </label>
+              <input
+                id="country"
+                type="text"
+                style={inputStyle}
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+              />
+            </div>
+            <div>
+              <label style={labelStyle} htmlFor="region">
+                Region / state (optional)
+              </label>
+              <input
+                id="region"
+                type="text"
+                style={inputStyle}
+                value={region}
+                onChange={(e) => setRegion(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div style={{ ...gridRowStyle, marginTop: "0.6rem" }}>
+            <div>
+              <label style={labelStyle} htmlFor="birthday">
+                Birthday
+              </label>
+              <input
+                id="birthday"
+                type="date"
+                style={inputStyle}
+                value={birthday}
+                onChange={(e) => setBirthday(e.target.value)}
+              />
+            </div>
+            <div>
+              <label style={labelStyle} htmlFor="postalCode">
+                ZIP / postal code
+              </label>
+              <input
+                id="postalCode"
+                type="text"
+                style={inputStyle}
+                value={postalCode}
+                onChange={(e) => setPostalCode(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div style={sectionTitleStyle}>Consent &amp; mode</div>
+
+          <div style={checkboxRowStyle}>
             <input
-              type="password"
-              autoComplete="new-password"
-              style={inputStyle}
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              required
+              id="understands"
+              type="checkbox"
+              style={checkboxStyle}
+              checked={understands}
+              onChange={(e) => setUnderstands(e.target.checked)}
             />
-          </label>
+            <label style={checkboxLabelStyle} htmlFor="understands">
+              I understand QuitChampion is for tracking addictions, habits, and
+              hard-honest behavior change. There may be profanity and blunt
+              language if I opt into Savage Mode later. This is not medical
+              advice or therapy.
+            </label>
+          </div>
 
-          <button
-            type="submit"
-            style={{
-              ...buttonStyle,
-              ...(submitting ? buttonDisabledStyle : null),
-            }}
-            disabled={submitting}
-          >
-            {submitting ? "Creating account..." : "Create account"}
+          <div style={checkboxRowStyle}>
+            <input
+              id="savage"
+              type="checkbox"
+              style={checkboxStyle}
+              checked={savageOptIn}
+              onChange={(e) => setSavageOptIn(e.target.checked)}
+            />
+            <label style={checkboxLabelStyle} htmlFor="savage">
+              I’m curious about Savage Mode (no mercy encouragement). I know
+              it’s optional and can be turned off at any time.
+            </label>
+          </div>
+
+          <button type="submit" style={submitButtonStyle}>
+            Create free account
           </button>
         </form>
-
-        <p style={footerRowStyle}>
-          Already have an account?{" "}
-          <Link to="/login" style={linkStyle}>
-            Sign in.
-          </Link>
-        </p>
-
-        <p style={metaStyle}>
-          © {new Date().getFullYear()} QuitChampion · A project of TNS
-          Enterprises (Stuff N&apos; Things LLC). Mobile app in active
-          development.
-        </p>
       </section>
     </main>
   );

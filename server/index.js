@@ -10,8 +10,11 @@ import { fileURLToPath } from "url";
 import authRoutes from "./routes/authRoutes.js";
 import raffleRoutes from "./routes/raffleRoutes.js";
 import supportRoutes from "./routes/supportRoutes.js";
+// ❌ REMOVE this old import:
+// import habitsRoutes from "./routes/habitsRoutes.js";
+import habitRoutes from "./routes/habitRoutes.js";
 
-// ----- Load env from server/.env explicitly -----
+// ----- Load env from server/.env -----
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -21,38 +24,29 @@ dotenv.config({ path: path.join(__dirname, ".env") });
 const app = express();
 
 const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/test";
+const MONGO_URI =
+  process.env.MONGO_URI || "mongodb://127.0.0.1:27017/test";
 
-// Look at all possible JWT secrets you’ve got defined
-const JWT_SECRET =
-  process.env.JWT_SECRET ||
-  process.env.JWT_ACCESS_SECRET ||
-  process.env.JWT_REFRESH_SECRET;
-
-if (!JWT_SECRET) {
-  console.warn("⚠ No JWT secret found. Set JWT_SECRET in server/.env");
-}
 
 // ----- CORS -----
 const allowedOrigins = [
   "http://localhost:5173",
-
-  // Your domains
-  "https://thingsnstuff.fun",
-  "https://www.thingsnstuff.fun",
-
-  // The Render backend can be called directly from tools / Postman etc.
-  "https://tns-website.onrender.com",
-
-  // Optional extra from env (preview URL etc.)
   process.env.CORS_ORIGIN,
+  "https://thingsnstuff.fun",
+  "https://tns-website.onrender.com",
+  "https://companysite-henna.vercel.app",
 ].filter(Boolean);
-
-console.log("CORS allowed origins:", allowedOrigins);
 
 app.use(
   cors({
-    origin: allowedOrigins,      // <<< let cors handle the matching
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      console.warn(`CORS blocked origin: ${origin}`);
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   })
 );
@@ -62,15 +56,15 @@ app.use(cookieParser());
 
 // ----- Routes -----
 app.get("/", (req, res) => {
-  res.json({
-    ok: true,
-    message: "QuitChampion API is running.",
-  });
+  res.json({ ok: true, message: "QuitChampion API is running." });
 });
 
 app.use("/api/auth", authRoutes);
 app.use("/api/raffle", raffleRoutes);
 app.use("/api/support", supportRoutes);
+
+// ✅ Single source of truth for habit stuff
+app.use("/api/habits", habitRoutes);
 
 // ----- Mongo + server start -----
 mongoose
