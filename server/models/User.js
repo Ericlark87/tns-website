@@ -35,15 +35,25 @@ const statsSchema = new Schema(
 
     // NEW: used for "days since last use" style streak math
     lastUseAt: { type: Date },
+
+    // ✅ check-in tracking
+    lastCheckInAt: { type: Date },
+    lastCheckInMood: { type: String, trim: true },
+    lastCheckInNote: { type: String, trim: true },
+
+    // ✅ resist tracking (simple counters)
+    resistsTotal: { type: Number, default: 0, min: 0 },
+    lastResistAt: { type: Date },
   },
   { _id: false }
 );
 
 const habitEventSchema = new Schema(
   {
-    type: { type: String, enum: ["use", "resist"], required: true },
+    type: { type: String, enum: ["checkin", "use", "resist"], required: true },
     quantity: { type: Number, default: 1, min: 1 },
     at: { type: Date, required: true },
+    mood: { type: String, trim: true }, // only meaningful for checkin
     note: { type: String, trim: true },
   },
   { _id: false }
@@ -82,7 +92,7 @@ const userSchema = new Schema(
     habit: habitSchema,
     stats: statsSchema,
 
-    // NEW: event log
+    // event log (newest appended)
     habitEvents: { type: [habitEventSchema], default: [] },
   },
   { timestamps: true }

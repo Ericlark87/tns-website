@@ -24,6 +24,14 @@ function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
 }
 
+function labelEvent(ev) {
+  const t = ev?.type;
+  if (t === "checkin") return "Check-in";
+  if (t === "use") return "Use";
+  if (t === "resist") return "Resist";
+  return "Event";
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -56,6 +64,10 @@ export default function Dashboard() {
   const [eventType, setEventType] = useState(null); // "use" | "resist"
   const [eventQty, setEventQty] = useState(1);
   const [eventNote, setEventNote] = useState("");
+
+  // ---- history UI ----
+  const [showFullHistory, setShowFullHistory] = useState(false);
+  const historyRef = useRef(null);
 
   // ---- raffle UI ----
   const [raffleSubmitting, setRaffleSubmitting] = useState(false);
@@ -285,6 +297,53 @@ export default function Dashboard() {
         fontSize: 13,
       },
 
+      // history list
+      historyWrap: {
+        marginTop: 12,
+        borderTop: "1px solid rgba(11,18,32,0.10)",
+        paddingTop: 12,
+      },
+
+      historyHeaderRow: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 10,
+      },
+
+      historyTitle: {
+        margin: 0,
+        fontSize: 12,
+        fontWeight: 900,
+        color: "rgba(11,18,32,0.72)",
+        textTransform: "uppercase",
+        letterSpacing: "0.02em",
+      },
+
+      historyList: {
+        marginTop: 10,
+        display: "grid",
+        gap: 8,
+      },
+
+      historyItem: {
+        border: "1px solid rgba(11,18,32,0.10)",
+        background: "rgba(11,18,32,0.02)",
+        borderRadius: 12,
+        padding: "10px 10px",
+      },
+
+      historyTop: {
+        display: "flex",
+        alignItems: "baseline",
+        justifyContent: "space-between",
+        gap: 10,
+      },
+
+      historyLabel: { margin: 0, fontWeight: 900, fontSize: 13 },
+      historyTime: { margin: 0, fontSize: 12, color: "rgba(11,18,32,0.65)", fontWeight: 800 },
+      historyNote: { margin: "6px 0 0", fontSize: 12, color: "rgba(11,18,32,0.72)", fontWeight: 700 },
+
       // modal
       overlay: {
         position: "fixed",
@@ -380,8 +439,6 @@ export default function Dashboard() {
         gap: 10,
         marginTop: 12,
       },
-
-      smallLink: { fontSize: 13, fontWeight: 900, color: blue, textDecoration: "none" },
     };
   }, []);
 
@@ -473,7 +530,7 @@ export default function Dashboard() {
 
     try {
       await postHabitEvent({
-        type: eventType, // "use" | "resist"
+        type: eventType,
         quantity: clamp(Number(eventQty || 1), 1, 999),
         note: (eventNote || "").trim().slice(0, 500),
         ts: Date.now(),
@@ -499,11 +556,8 @@ export default function Dashboard() {
 
   async function handleEnterRaffle() {
     if (!isAuthed) return navigate("/login");
-
-    // if already entered, never call /enter again
     if (raffleUserHasEntry) return;
 
-    // hard lock: prevents multi-fire from any source
     if (raffleEnterLockRef.current) return;
     raffleEnterLockRef.current = true;
 
@@ -513,20 +567,16 @@ export default function Dashboard() {
     try {
       await enterRaffle({});
 
-      // Mark persisted immediately (even before refresh) so UI never flips back
       setRaffleEnteredPersisted(true);
       try {
         localStorage.setItem("qc_raffle_entered_beta_round_1", "1");
-      } catch {
-        // ignore
-      }
+      } catch {}
 
       await loadAll(true);
     } catch (err) {
       const raw = err?.message || "Raffle entry failed.";
       const msg = raw.toLowerCase();
 
-      // duplicate/already entered = treat as success and lock UI
       if (
         msg.includes("already have an entry") ||
         msg.includes("duplicate") ||
@@ -536,9 +586,7 @@ export default function Dashboard() {
         setRaffleEnteredPersisted(true);
         try {
           localStorage.setItem("qc_raffle_entered_beta_round_1", "1");
-        } catch {
-          // ignore
-        }
+        } catch {}
         await loadAll(true);
         return;
       }
@@ -546,15 +594,16 @@ export default function Dashboard() {
       setRaffleError(raw);
     } finally {
       setRaffleSubmitting(false);
-      // small cooldown, then unlock
       setTimeout(() => {
         raffleEnterLockRef.current = false;
       }, 800);
     }
   }
 
+  // --- stats mapping ---
   const streakNow = Number(habitStats?.currentStreak ?? habitStats?.streak ?? 0) || 0;
   const streakBest = Number(habitStats?.longestStreak ?? habitStats?.bestStreak ?? 0) || 0;
+
   const lastCheckin =
     habitStats?.lastCheckInAt ||
     habitStats?.lastCheckinAt ||
@@ -564,6 +613,17 @@ export default function Dashboard() {
 
   const streakCopy =
     streakNow <= 0 ? "Your first check-in starts your streak." : `Day ${streakNow}. Keep it alive.`;
+
+  // --- history ---
+  const allEvents = Array.isArray(habitStats?.recentEvents) ? habitStats.recentEvents : [];
+  const visibleEvents = showFullHistory ? allEvents : allEvents.slice(0, 25);
+
+  function toggleHistory() {
+    setShowFullHistory((v) => !v);
+    setTimeout(() => {
+      if (historyRef.current) historyRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }
 
   return (
     <div style={styles.page}>
@@ -684,6 +744,45 @@ export default function Dashboard() {
 
                 <div style={styles.note}>
                   Check-in = “how you’re doing.” Log use/resist = “what happened.”
+                </div>
+
+                {/* HISTORY */}
+                <div style={styles.historyWrap} ref={historyRef}>
+                  <div style={styles.historyHeaderRow}>
+                    <p style={styles.historyTitle}>
+                      Recent activity ({showFullHistory ? "full log" : "last 25"})
+                    </p>
+                    <button type="button" style={{ ...styles.btn, ...styles.btnSoft }} onClick={toggleHistory}>
+                      {showFullHistory ? "Collapse" : "Full History Log"}
+                    </button>
+                  </div>
+
+                  {visibleEvents.length === 0 ? (
+                    <div style={styles.note}>No activity yet. Your first check-in or event will show here.</div>
+                  ) : (
+                    <div style={styles.historyList}>
+                      {visibleEvents.map((ev, idx) => {
+                        const t = labelEvent(ev);
+                        const qty = Number(ev?.quantity || 1);
+                        const when = ev?.at ? ev.at : ev?.timestamp;
+                        const mood = ev?.mood ? ` (${ev.mood})` : "";
+                        const note = (ev?.note || "").trim();
+
+                        return (
+                          <div key={`${ev?.at || idx}-${idx}`} style={styles.historyItem}>
+                            <div style={styles.historyTop}>
+                              <p style={styles.historyLabel}>
+                                {t}
+                                {t !== "Check-in" ? ` ×${qty}` : mood}
+                              </p>
+                              <p style={styles.historyTime}>{formatDateTime(when)}</p>
+                            </div>
+                            {note ? <p style={styles.historyNote}>{note}</p> : null}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
 

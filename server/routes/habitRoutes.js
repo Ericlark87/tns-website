@@ -7,7 +7,8 @@ import {
   saveHabitSettings,
   getHabitStats,
   logHabitUse,
-  postHabitCheckIn
+  postHabitCheckIn,
+  postHabitEvent,
 } from "../controllers/habitController.js";
 
 const router = express.Router();
@@ -17,12 +18,11 @@ router.post("/settings", requireAuth, saveHabitSettings);
 
 router.get("/stats", requireAuth, getHabitStats);
 
-// Your original endpoint
+// legacy endpoint (kept)
 router.post("/log", requireAuth, logHabitUse);
 
-// ✅ aliases so the client doesn't 404
-router.post("/checkin", requireAuth, logHabitUse);
-router.post("/events", requireAuth, logHabitUse);
+// correct endpoints used by the client
 router.post("/checkin", requireAuth, postHabitCheckIn);
+router.post("/events", requireAuth, postHabitEvent);
 
 export default router;
