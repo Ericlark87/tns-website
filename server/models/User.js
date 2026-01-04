@@ -6,17 +6,9 @@ const { Schema } = mongoose;
 
 const habitSchema = new Schema(
   {
-    substance: {
-      type: String,
-      enum: ["cigarettes", "vape", "alcohol", "weed", "other"],
-      default: "cigarettes",
-    },
+    substance: { type: String, enum: ["cigarettes", "vape", "alcohol", "weed", "other"], default: "cigarettes" },
     customName: { type: String, trim: true },
-    intent: {
-      type: String,
-      enum: ["quit", "cut-back", "break", "taper"],
-      default: "quit",
-    },
+    intent: { type: String, enum: ["quit", "cut-back", "break", "taper"], default: "quit" },
     unitsPerDay: { type: Number, default: 0, min: 0 },
     packCost: { type: Number, default: 0, min: 0 },
     unitsPerPack: { type: Number, default: 20, min: 1 },
@@ -30,14 +22,11 @@ const statsSchema = new Schema(
     streakStartedAt: { type: Date },
     bestStreakDays: { type: Number, default: 0, min: 0 },
     lastResetAt: { type: Date },
-
     lastActivityAt: { type: Date },
     lastUseAt: { type: Date },
-
     lastCheckInAt: { type: Date },
     lastCheckInMood: { type: String, trim: true },
     lastCheckInNote: { type: String, trim: true },
-
     resistsTotal: { type: Number, default: 0, min: 0 },
     lastResistAt: { type: Date },
   },
@@ -57,53 +46,32 @@ const habitEventSchema = new Schema(
 
 const userSchema = new Schema(
   {
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      index: true,
-      trim: true,
-      lowercase: true,
-    },
+    email: { type: String, required: true, unique: true, index: true, trim: true, lowercase: true },
+    passwordHash: { type: String, required: true, select: false },
 
-    // Stored hash. Not selected by default.
-    passwordHash: {
-      type: String,
-      required: true,
-      select: false,
-    },
-
-    plan: {
-      type: String,
-      enum: ["free", "trial", "premium"],
-      default: "free",
-    },
-
+    plan: { type: String, enum: ["free", "trial", "premium"], default: "free" },
     fromRaffle: { type: Boolean, default: false },
-    savageMode: { type: Boolean, default: false },
 
+    savageMode: { type: Boolean, default: false },
     profile: { type: Schema.Types.Mixed, default: {} },
     savageModeOptIn: { type: Boolean, default: false },
 
     habit: habitSchema,
     stats: statsSchema,
-
     habitEvents: { type: [habitEventSchema], default: [] },
   },
   { timestamps: true }
 );
 
-// Compare plaintext password to stored hash.
-// NOTE: passwordHash must be selected in query (select("+passwordHash")).
-userSchema.methods.comparePassword = async function (plainPassword) {
-  if (!this.passwordHash) return false;
-  return bcrypt.compare(String(plainPassword), this.passwordHash);
+// instance method
+userSchema.methods.comparePassword = async function (plain) {
+  return bcrypt.compare(String(plain || ""), this.passwordHash);
 };
 
-// Helper you can use in a signup route.
-userSchema.statics.hashPassword = async function (plainPassword) {
+// static helper (optional)
+userSchema.statics.hashPassword = async function (plain) {
   const saltRounds = Number(process.env.BCRYPT_ROUNDS || 12);
-  return bcrypt.hash(String(plainPassword), saltRounds);
+  return bcrypt.hash(String(plain || ""), saltRounds);
 };
 
 const User = mongoose.models.User || mongoose.model("User", userSchema);
