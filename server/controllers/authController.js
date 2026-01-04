@@ -1,3 +1,4 @@
+//server>controllers>authController.js
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
@@ -35,14 +36,13 @@ function createRefreshToken(user) {
 }
 
 function setRefreshCookie(res, token) {
-  // Match what your live server already uses: qtc_refresh + Path=/ + SameSite=None in prod
   res.cookie("qtc_refresh", token, {
     httpOnly: true,
-    secure: isProd,                 // true on HTTPS in production
-    sameSite: isProd ? "none" : "lax",
-    path: "/",                      // ✅ broad + reliable
-    domain: isProd ? ".thingsnstuff.fun" : undefined, // ✅ share across api/www subdomains
-    maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days
+    secure: isProd,     // true in production
+    sameSite: "lax",    // always
+    path: "/",          // always
+    // IMPORTANT: do NOT set domain
+    maxAge: 1000 * 60 * 60 * 24 * 30,
   });
 }
 
@@ -50,11 +50,12 @@ function clearRefreshCookie(res) {
   res.clearCookie("qtc_refresh", {
     httpOnly: true,
     secure: isProd,
-    sameSite: isProd ? "none" : "lax",
+    sameSite: "lax",
     path: "/",
-    domain: isProd ? ".thingsnstuff.fun" : undefined,
+    // IMPORTANT: do NOT set domain
   });
 }
+
 
 /** -------------------------
  * REGISTER USER

@@ -7,7 +7,6 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 
-import authRoutes from "./routes/authRoutes.js";
 import raffleRoutes from "./routes/raffleRoutes.js";
 import supportRoutes from "./routes/supportRoutes.js";
 import habitRoutes from "./routes/habitRoutes.js";
@@ -74,7 +73,6 @@ app.get("/", (req, res) => {
   res.json({ ok: true, message: "QuitChampion API is running." });
 });
 
-app.use("/api/auth", authRoutes);
 app.use("/api/raffle", raffleRoutes);
 app.use("/api/support", supportRoutes);
 app.use("/api/habits", habitRoutes);

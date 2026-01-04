@@ -1,3 +1,4 @@
+// /home/elcskater/TNS/company_site/client/api/api.js
 import axios from "axios";
 
 const api = axios.create({

@@ -1,11 +1,17 @@
 // /home/elcskater/TNS/company_site/client/src/api.js
 
-const DEFAULT_LOCAL_BASE = "http://localhost:5000";
-
-export const API_BASE_URL =
+// Dev override (optional):
+// - If you set VITE_API_BASE_URL="http://localhost:5000" -> direct to local backend
+// - If you leave it empty -> use relative "/api" (recommended with Vite proxy)
+const ENV_BASE =
   (import.meta.env.VITE_API_BASE_URL &&
     import.meta.env.VITE_API_BASE_URL.trim().replace(/\/+$/, "")) ||
-  DEFAULT_LOCAL_BASE;
+  "";
+
+// IMPORTANT:
+// - In production we ALWAYS want same-origin relative calls ("/api/...").
+// - In dev we default to relative (so Vite proxy handles it), unless ENV overrides it.
+export const API_BASE_URL = import.meta.env.PROD ? "" : ENV_BASE;
 
 // ---- token helpers (access token only; refresh is httpOnly cookie) ----
 export function setAccessToken(token) {
@@ -42,8 +48,6 @@ async function apiRequest(path, options = {}) {
   const token = getAccessToken();
   const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
 
-  const method = (options.method || "GET").toUpperCase();
-
   // IMPORTANT:
   // Avoid 304 Not Modified for API calls.
   // In fetch(), 304 -> response.ok === false, which breaks our handler.
@@ -60,19 +64,26 @@ async function apiRequest(path, options = {}) {
     ...options,
   };
 
+  // If caller passed an absolute URL, use it as-is.
   if (isAbsolute) {
     const response = await fetch(path, baseOptions);
     return handleResponse(response);
   }
 
-  let normalizedBase = API_BASE_URL.replace(/\/+$/, "");
+  // Normalize path
   let normalizedPath = path.startsWith("/") ? path : `/${path}`;
 
+  // If we are using a base URL that already ends with /api, avoid double /api/api
+  const normalizedBase = (API_BASE_URL || "").replace(/\/+$/, "");
   if (normalizedBase.endsWith("/api") && normalizedPath.startsWith("/api/")) {
     normalizedPath = normalizedPath.slice(4);
   }
 
-  const url = `${normalizedBase}${normalizedPath}`;
+  // FINAL URL RULES:
+  // - If base is empty => relative request (e.g. "/api/auth/me") => same-origin in prod, Vite proxy in dev
+  // - If base is set => absolute-ish request (e.g. "http://localhost:5000/api/auth/me")
+  const url = normalizedBase ? `${normalizedBase}${normalizedPath}` : normalizedPath;
+
   const response = await fetch(url, baseOptions);
   return handleResponse(response);
 }
