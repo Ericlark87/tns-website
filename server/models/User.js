@@ -1,5 +1,6 @@
-// /home/elcskater/TNS/company_site/server/models/User.js
+// server/models/User.js
 import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
 
 const { Schema } = mongoose;
 
@@ -30,18 +31,13 @@ const statsSchema = new Schema(
     bestStreakDays: { type: Number, default: 0, min: 0 },
     lastResetAt: { type: Date },
 
-    // NEW: used for Option A idle rule (24h inactivity kills streak)
     lastActivityAt: { type: Date },
-
-    // NEW: used for "days since last use" style streak math
     lastUseAt: { type: Date },
 
-    // ✅ check-in tracking
     lastCheckInAt: { type: Date },
     lastCheckInMood: { type: String, trim: true },
     lastCheckInNote: { type: String, trim: true },
 
-    // ✅ resist tracking (simple counters)
     resistsTotal: { type: Number, default: 0, min: 0 },
     lastResistAt: { type: Date },
   },
@@ -53,7 +49,7 @@ const habitEventSchema = new Schema(
     type: { type: String, enum: ["checkin", "use", "resist"], required: true },
     quantity: { type: Number, default: 1, min: 1 },
     at: { type: Date, required: true },
-    mood: { type: String, trim: true }, // only meaningful for checkin
+    mood: { type: String, trim: true },
     note: { type: String, trim: true },
   },
   { _id: false }
@@ -69,6 +65,8 @@ const userSchema = new Schema(
       trim: true,
       lowercase: true,
     },
+
+    // Stored hash. Not selected by default.
     passwordHash: {
       type: String,
       required: true,
@@ -82,21 +80,31 @@ const userSchema = new Schema(
     },
 
     fromRaffle: { type: Boolean, default: false },
-
     savageMode: { type: Boolean, default: false },
 
-    // optional profile stuff
     profile: { type: Schema.Types.Mixed, default: {} },
     savageModeOptIn: { type: Boolean, default: false },
 
     habit: habitSchema,
     stats: statsSchema,
 
-    // event log (newest appended)
     habitEvents: { type: [habitEventSchema], default: [] },
   },
   { timestamps: true }
 );
+
+// Compare plaintext password to stored hash.
+// NOTE: passwordHash must be selected in query (select("+passwordHash")).
+userSchema.methods.comparePassword = async function (plainPassword) {
+  if (!this.passwordHash) return false;
+  return bcrypt.compare(String(plainPassword), this.passwordHash);
+};
+
+// Helper you can use in a signup route.
+userSchema.statics.hashPassword = async function (plainPassword) {
+  const saltRounds = Number(process.env.BCRYPT_ROUNDS || 12);
+  return bcrypt.hash(String(plainPassword), saltRounds);
+};
 
 const User = mongoose.models.User || mongoose.model("User", userSchema);
 export default User;
