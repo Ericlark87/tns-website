@@ -79,6 +79,16 @@ app.use("/api/raffle", raffleRoutes);
 app.use("/api/support", supportRoutes);
 app.use("/api/habits", habitRoutes);
 
+
+app.get("/api/health", (req, res) => {
+  res.status(200).json({
+    ok: true,
+    service: "QuitChampion API",
+    time: new Date().toISOString(),
+  });
+});
+
+
 // ----- Mongo + server start -----
 mongoose
   .connect(MONGO_URI)
