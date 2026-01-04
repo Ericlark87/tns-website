@@ -52,25 +52,6 @@ app.get("/", (req, res) => {
   res.json({ ok: true, message: "QuitChampion API is running." });
 });
 
-// TEMP DEBUG: show which DB prod is using (sanitized)
-app.get("/api/_mongo_hint", (req, res) => {
-  const uri = process.env.MONGO_URI || "";
-  const masked = uri.replace(/\/\/([^:]+):([^@]+)@/, "//$1:***@");
-  res.json({
-    ok: true,
-    hint: masked,
-    dbNameGuess: (() => {
-      try {
-        const u = new URL(uri);
-        const p = (u.pathname || "").replace(/^\//, "");
-        return p || "(none in uri)";
-      } catch {
-        return "(unparseable)";
-      }
-    })(),
-  });
-});
-
 app.use("/api/auth", authRoutes);
 app.use("/api/raffle", raffleRoutes);
 app.use("/api/support", supportRoutes);
