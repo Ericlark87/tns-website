@@ -3,8 +3,11 @@ import User from "../models/User.js";
 import HabitLog from "../models/HabitLog.js";
 
 const DAY_MS = 86400000;
+
 const MAX_EVENTS_STORED = 500; // hard cap in DB
 const DASHBOARD_EVENTS_DEFAULT = 25; // what the UI shows by default
+
+const FUTURE_SKEW_MS = 5 * 60 * 1000; // allow 5 minutes clock skew max
 
 function getUserId(req) {
   return req.userId || req.user?._id || req.user?.id || null;
@@ -24,9 +27,21 @@ function clamp(n, min, max) {
 }
 
 function safeDateFromTs(ts) {
+  // If ts missing -> now
+  if (ts === undefined || ts === null || ts === "") return new Date();
+
   const n = Number(ts);
-  if (Number.isFinite(n) && n > 0) return new Date(n);
-  return new Date();
+  if (!Number.isFinite(n) || n <= 0) return new Date();
+
+  return new Date(n);
+}
+
+function validateWhenNotFuture(when) {
+  const now = Date.now();
+  const t = when.getTime();
+  if (!Number.isFinite(t)) return { ok: false, message: "Invalid timestamp." };
+  if (t > now + FUTURE_SKEW_MS) return { ok: false, message: "Timestamp is in the future." };
+  return { ok: true };
 }
 
 function pushHabitEvent(user, ev) {
@@ -37,6 +52,101 @@ function pushHabitEvent(user, ev) {
   if (user.habitEvents.length > MAX_EVENTS_STORED) {
     user.habitEvents = user.habitEvents.slice(-MAX_EVENTS_STORED);
   }
+}
+
+async function incrementHabitLog(userId, when, unitsNum) {
+  const day = startOfUtcDay(when);
+
+  const log = await HabitLog.findOneAndUpdate(
+    { user: userId, day },
+    { $inc: { units: unitsNum } },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  return log;
+}
+
+function buildRecentEvents(user) {
+  const events = Array.isArray(user.habitEvents) ? user.habitEvents : [];
+  // newest-first, cap to MAX_EVENTS_STORED
+  return events.slice(-MAX_EVENTS_STORED).reverse().slice(0, MAX_EVENTS_STORED);
+}
+
+async function buildHabitStatsPayload(userId) {
+  const user = await User.findById(userId).lean();
+  if (!user) return null;
+
+  const habit = user.habit || {};
+  const stats = user.stats || {};
+
+  const baselineUnitsPerDay = toNumber(habit.unitsPerDay, 0);
+  const unitsPerPack = toNumber(habit.unitsPerPack, 20) || 20;
+  const packCost = toNumber(habit.packCost, 0);
+
+  const baselineSpendPerDay =
+    baselineUnitsPerDay && unitsPerPack && packCost
+      ? (baselineUnitsPerDay / unitsPerPack) * packCost
+      : 0;
+
+  const todayStart = startOfUtcDay();
+  const todayLog = await HabitLog.findOne({ user: userId, day: todayStart }).lean();
+  const todayUnits = todayLog?.units || 0;
+
+  const todaySpend =
+    baselineUnitsPerDay && baselineSpendPerDay
+      ? (todayUnits / baselineUnitsPerDay) * baselineSpendPerDay
+      : 0;
+
+  // Clean streak = full UTC days since last use day (or since streakStartedAt if lastUseAt missing)
+  let streakDays = 0;
+  const lastUseAt = stats.lastUseAt ? new Date(stats.lastUseAt) : null;
+
+  if (lastUseAt && !Number.isNaN(lastUseAt.getTime())) {
+    const lastUseDay = startOfUtcDay(lastUseAt);
+    const diffMs = todayStart - lastUseDay;
+    if (diffMs >= 0) streakDays = Math.floor(diffMs / DAY_MS);
+  } else if (stats.streakStartedAt) {
+    const startDay = startOfUtcDay(new Date(stats.streakStartedAt));
+    const diffMs = todayStart - startDay;
+    if (diffMs >= 0) streakDays = Math.floor(diffMs / DAY_MS);
+  }
+
+  const bestStreakDays = toNumber(stats.bestStreakDays, 0);
+  const daysClean = streakDays;
+  const moneySaved = daysClean * baselineSpendPerDay;
+
+  const recentEvents = buildRecentEvents(user);
+
+  return {
+    hasHabit: !!habit.substance,
+    substance: habit.substance || null,
+    customName: habit.customName || "",
+    intent: habit.intent || "quit",
+    currency: habit.currency || "USD",
+
+    baselineUnitsPerDay,
+    baselineSpendPerDay,
+    unitsPerPack,
+    packCost,
+
+    // dashboard-compatible keys
+    currentStreak: streakDays,
+    longestStreak: bestStreakDays,
+    lastCheckInAt: stats.lastCheckInAt || null,
+
+    // keep old keys too
+    streakDays,
+    bestStreakDays,
+    daysClean,
+    moneySaved,
+
+    todayUnits,
+    todaySpend,
+    todayVsBaseline: baselineUnitsPerDay ? baselineUnitsPerDay - todayUnits : null,
+
+    recentEvents,
+    dashboardDefaultLimit: DASHBOARD_EVENTS_DEFAULT,
+  };
 }
 
 // ----- SETTINGS -----
@@ -107,97 +217,24 @@ export async function getHabitStats(req, res) {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ message: "Not authenticated." });
 
-    const user = await User.findById(userId).lean();
-    if (!user) return res.status(404).json({ message: "User not found." });
+    const payload = await buildHabitStatsPayload(userId);
+    if (!payload) return res.status(404).json({ message: "User not found." });
 
-    const habit = user.habit || {};
-    const stats = user.stats || {};
-
-    const baselineUnitsPerDay = toNumber(habit.unitsPerDay, 0);
-    const unitsPerPack = toNumber(habit.unitsPerPack, 20) || 20;
-    const packCost = toNumber(habit.packCost, 0);
-
-    const baselineSpendPerDay =
-      baselineUnitsPerDay && unitsPerPack && packCost
-        ? (baselineUnitsPerDay / unitsPerPack) * packCost
-        : 0;
-
-    const todayStart = startOfUtcDay();
-    const todayLog = await HabitLog.findOne({ user: user._id, day: todayStart }).lean();
-    const todayUnits = todayLog?.units || 0;
-
-    const todaySpend =
-      baselineUnitsPerDay && baselineSpendPerDay
-        ? (todayUnits / baselineUnitsPerDay) * baselineSpendPerDay
-        : 0;
-
-    // Clean streak = days since last use (or since streakStartedAt if lastUseAt missing)
-    let streakDays = 0;
-    const lastUseAt = stats.lastUseAt ? new Date(stats.lastUseAt) : null;
-
-    if (lastUseAt && !Number.isNaN(lastUseAt.getTime())) {
-      const lastUseDay = startOfUtcDay(lastUseAt);
-      const diffMs = todayStart - lastUseDay;
-      if (diffMs >= 0) streakDays = Math.floor(diffMs / DAY_MS);
-    } else if (stats.streakStartedAt) {
-      const startDay = startOfUtcDay(new Date(stats.streakStartedAt));
-      const diffMs = todayStart - startDay;
-      if (diffMs >= 0) streakDays = Math.floor(diffMs / DAY_MS);
-    }
-
-    const bestStreakDays = toNumber(stats.bestStreakDays, 0);
-    const daysClean = streakDays;
-    const moneySaved = daysClean * baselineSpendPerDay;
-
-    // Recent events: newest-first. UI shows 25 by default.
-    const events = Array.isArray(user.habitEvents) ? user.habitEvents : [];
-    const recentEvents = events.slice(-MAX_EVENTS_STORED).reverse().slice(0, MAX_EVENTS_STORED);
-
-    return res.json({
-      hasHabit: !!habit.substance,
-      substance: habit.substance || null,
-      customName: habit.customName || "",
-      intent: habit.intent || "quit",
-      currency: habit.currency || "USD",
-
-      baselineUnitsPerDay,
-      baselineSpendPerDay,
-      unitsPerPack,
-      packCost,
-
-      // dashboard-compatible keys
-      currentStreak: streakDays,
-      longestStreak: bestStreakDays,
-      lastCheckInAt: stats.lastCheckInAt || null,
-
-      // keep old keys too
-      streakDays,
-      bestStreakDays,
-      daysClean,
-      moneySaved,
-
-      todayUnits,
-      todaySpend,
-      todayVsBaseline: baselineUnitsPerDay ? baselineUnitsPerDay - todayUnits : null,
-
-      // NEW: activity feed (client will slice to 25)
-      recentEvents,
-      dashboardDefaultLimit: DASHBOARD_EVENTS_DEFAULT,
-    });
+    return res.json(payload);
   } catch (err) {
     console.error("getHabitStats error:", err);
     return res.status(500).json({ message: "Could not load habit stats. Try again." });
   }
 }
 
-// ----- LOGGING USE (increment today units) -----
-
+// ----- LOGGING USE (legacy /log) -----
+// Supports optional ts to log to correct UTC day and keep timestamp consistent.
 export async function logHabitUse(req, res) {
   try {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ message: "Not authenticated." });
 
-    const { units } = req.body || {};
+    const { units, ts } = req.body || {};
     const unitsRaw = units === undefined || units === null || units === "" ? 1 : units;
     const unitsNum = Number(unitsRaw);
 
@@ -205,34 +242,40 @@ export async function logHabitUse(req, res) {
       return res.status(400).json({ message: "units must be a non-negative number." });
     }
 
+    const when = safeDateFromTs(ts);
+    const timeOk = validateWhenNotFuture(when);
+    if (!timeOk.ok) return res.status(400).json({ message: timeOk.message });
+
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found." });
 
-    const todayStart = startOfUtcDay();
-
-    const log = await HabitLog.findOneAndUpdate(
-      { user: user._id, day: todayStart },
-      { $inc: { units: unitsNum } },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-
-    const now = new Date();
+    const log = await incrementHabitLog(user._id, when, unitsNum);
 
     if (!user.stats) user.stats = {};
-    user.stats.lastActivityAt = now;
+    user.stats.lastActivityAt = when;
 
     if (unitsNum > 0) {
-      // "use" happened -> streak reset anchor
-      user.stats.lastUseAt = now;
-      user.stats.streakStartedAt = todayStart;
-      user.stats.lastResetAt = now;
+      // "use" happened -> streak reset anchor, DO NOT overwrite timestamp with "now"
+      user.stats.lastUseAt = when;
+      user.stats.streakStartedAt = startOfUtcDay(when);
+      user.stats.lastResetAt = when;
+
+      pushHabitEvent(user, {
+        type: "use",
+        quantity: clamp(unitsNum, 1, 999),
+        at: when,
+        note: "",
+      });
     }
 
     await user.save();
 
+    const statsPayload = await buildHabitStatsPayload(userId);
+
     return res.json({
       success: true,
       log: { day: log.day, units: log.units },
+      stats: statsPayload,
     });
   } catch (err) {
     console.error("logHabitUse error:", err);
@@ -241,7 +284,7 @@ export async function logHabitUse(req, res) {
 }
 
 // ----- CHECK-IN (does NOT increment units) -----
-
+// Enforced: 1 check-in per UTC day.
 export async function postHabitCheckIn(req, res) {
   try {
     const userId = getUserId(req);
@@ -249,27 +292,44 @@ export async function postHabitCheckIn(req, res) {
 
     const { mood, note, ts } = req.body || {};
 
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: "User not found." });
-
     const when = safeDateFromTs(ts);
+    const timeOk = validateWhenNotFuture(when);
+    if (!timeOk.ok) return res.status(400).json({ message: timeOk.message });
+
     const moodClean = typeof mood === "string" ? mood.trim().slice(0, 20) : "";
     const noteClean = typeof note === "string" ? note.trim().slice(0, 500) : "";
 
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found." });
+
     if (!user.stats) user.stats = {};
+
+    // enforce 1 check-in per UTC day
+    if (user.stats.lastCheckInAt) {
+      const last = new Date(user.stats.lastCheckInAt);
+      if (!Number.isNaN(last.getTime())) {
+        const lastDay = startOfUtcDay(last).getTime();
+        const nowDay = startOfUtcDay(when).getTime();
+        if (lastDay === nowDay) {
+          return res.status(409).json({ message: "Already checked in today." });
+        }
+      }
+    }
+
     user.stats.lastCheckInAt = when;
     user.stats.lastCheckInMood = moodClean;
     user.stats.lastCheckInNote = noteClean;
     user.stats.lastActivityAt = when;
 
-    // If streak has never started, start it on first check-in
+    // If streak has never started, start it on first check-in (UTC day of check-in)
     if (!user.stats.streakStartedAt) {
       user.stats.streakStartedAt = startOfUtcDay(when);
     }
 
     // Update best streak based on current streak math (days since last use)
-    const todayStart = startOfUtcDay();
+    const todayStart = startOfUtcDay(); // streak is evaluated "as of today"
     let streakDays = 0;
+
     if (user.stats.lastUseAt) {
       const lastUseDay = startOfUtcDay(new Date(user.stats.lastUseAt));
       const diffMs = todayStart - lastUseDay;
@@ -295,7 +355,9 @@ export async function postHabitCheckIn(req, res) {
 
     await user.save();
 
-    return res.json({ success: true });
+    const statsPayload = await buildHabitStatsPayload(userId);
+
+    return res.json({ success: true, stats: statsPayload });
   } catch (err) {
     console.error("postHabitCheckIn error:", err);
     return res.status(500).json({ message: "Could not save check-in. Try again." });
@@ -303,7 +365,9 @@ export async function postHabitCheckIn(req, res) {
 }
 
 // ----- EVENT (use/resist) -----
-
+// Enforced:
+// - ts cannot be far future
+// - logs "use" to the event day, does not overwrite with server "now"
 export async function postHabitEvent(req, res) {
   try {
     const userId = getUserId(req);
@@ -314,8 +378,11 @@ export async function postHabitEvent(req, res) {
       return res.status(400).json({ message: "type must be 'use' or 'resist'." });
     }
 
-    const qty = clamp(Number(quantity || 1), 1, 999);
     const when = safeDateFromTs(ts);
+    const timeOk = validateWhenNotFuture(when);
+    if (!timeOk.ok) return res.status(400).json({ message: timeOk.message });
+
+    const qty = clamp(Number(quantity || 1), 1, 999);
     const noteClean = typeof note === "string" ? note.trim().slice(0, 500) : "";
 
     const user = await User.findById(userId);
@@ -336,7 +403,9 @@ export async function postHabitEvent(req, res) {
       });
 
       await user.save();
-      return res.json({ success: true });
+
+      const statsPayload = await buildHabitStatsPayload(userId);
+      return res.json({ success: true, stats: statsPayload });
     }
 
     // type === "use"
@@ -347,16 +416,18 @@ export async function postHabitEvent(req, res) {
       note: noteClean,
     });
 
-    // Save event + stats first
+    // Save stats using EVENT timestamp (not server now)
     user.stats.lastUseAt = when;
     user.stats.streakStartedAt = startOfUtcDay(when);
     user.stats.lastResetAt = when;
 
+    // Ensure daily log increments for EVENT day
+    await incrementHabitLog(user._id, when, qty);
+
     await user.save();
 
-    // Then increment daily units via HabitLog
-    req.body = { units: qty };
-    return logHabitUse(req, res);
+    const statsPayload = await buildHabitStatsPayload(userId);
+    return res.json({ success: true, stats: statsPayload });
   } catch (err) {
     console.error("postHabitEvent error:", err);
     return res.status(500).json({ message: "Could not save event. Try again." });

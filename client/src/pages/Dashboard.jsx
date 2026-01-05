@@ -1,3 +1,4 @@
+//client>src>pages>Dashboard.jsx:
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -504,17 +505,20 @@ export default function Dashboard() {
     setCheckinToast("");
 
     try {
-      await postHabitCheckIn({
+      const res = await postHabitCheckIn({
         mood: checkinMood,
         note: (checkinNote || "").trim().slice(0, 500),
         ts: Date.now(),
       });
 
+      if (res?.stats) setHabitStats(res.stats);
+
       setCheckinOpen(false);
       setCheckinToast("✅ Check-in saved.");
-      await loadAll(true);
     } catch (err) {
       setHabitError(err?.message || "Check-in failed.");
+      // server may have newer truth (e.g. cookie issues). optional refresh:
+      // await loadAll(true);
     } finally {
       setCheckinSubmitting(false);
     }
@@ -529,17 +533,20 @@ export default function Dashboard() {
     setCheckinToast("");
 
     try {
-      await postHabitEvent({
+      const res = await postHabitEvent({
         type: eventType,
         quantity: clamp(Number(eventQty || 1), 1, 999),
         note: (eventNote || "").trim().slice(0, 500),
         ts: Date.now(),
       });
 
+      if (res?.stats) setHabitStats(res.stats);
+
       setEventOpen(false);
-      await loadAll(true);
     } catch (err) {
       setHabitError(err?.message || "Event log failed.");
+      // optional refresh:
+      // await loadAll(true);
     } finally {
       setEventSubmitting(false);
     }
